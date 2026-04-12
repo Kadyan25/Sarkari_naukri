@@ -1,345 +1,265 @@
-# SEO Crawler — Technical Audit Tool
+# Haryana Sarkari Naukri
 
-A Python-based SEO auditing API built with FastAPI. Crawls any website and produces a full technical SEO audit: on-page signals, Core Web Vitals, broken links, redirect health, sitemap/robots checks, canonical conflicts, hreflang coverage, schema markup, and more. Results are persisted in SQLite and exportable as CSV, JSON, or Markdown reports.
+Govt job notification aggregator for Haryana aspirants — like SarkariResult.com with personalization, Telegram alerts, and Google Jobs integration.
 
----
-
-## Architecture
-
-The project is split into 8 focused modules:
-
-```
-main.py          FastAPI routes + background job orchestration
-full_audit.py    FullTechnicalAudit class — wires all modules together
-crawler.py       Async HTTP crawler (httpx + BeautifulSoup)
-analyzers.py     Post-crawl analysis, redirect checks, external link health
-pagespeed.py     Google PageSpeed Insights API integration
-reporters.py     Plain-text summary + client/internal Markdown reports
-db.py            SQLite helpers (jobs, status, results)
-config.py        Constants, user agents, SUMMARY_KEYS
-js_worker.py     Playwright subprocess for JS-rendered pages
-```
+**Stack:** Python FastAPI · PostgreSQL · Next.js 14 · Telegram Bot
 
 ---
 
-## Requirements
+## Features
+
+- Scrapes HSSC, HPSC, Haryana Police, SarkariResult, hreyajna automatically every 30 min
+- Telegram alerts in Hindi when new jobs are posted
+- Personalised job recommendations by qualification + age
+- JobPosting JSON-LD schema on every job page (Google Jobs tab)
+- Admit card + result pages for high-traffic SEO keywords
+- Mobile-first UI with Hindi (Devanagari) support
+
+---
+
+## Project Structure
+
+```
+haryana-naukri/
+├── main.py          # FastAPI app + lifespan
+├── scraper.py       # Concurrent job scrapers (httpx + BS4)
+├── scheduler.py     # APScheduler — scrape every 30 min, alerts every 5 min
+├── db.py            # asyncpg PostgreSQL helpers
+├── telegram_bot.py  # Telegram bot + alert sender
+├── ncs_api.py       # NCS Portal API client
+├── config.py        # Env vars, source URLs, random_headers()
+├── verify.py        # Data verification script
+├── requirements.txt
+├── Dockerfile
+├── railway.toml
+├── .env.example
+└── frontend/
+    └── app/
+        ├── page.tsx              # Homepage — job list + category tabs
+        ├── [category]/page.tsx   # HSSC / HPSC / Police etc.
+        ├── job/[slug]/page.tsx   # Job detail + JobPosting schema
+        ├── admit-card/page.tsx   # Admit card page
+        ├── result/page.tsx       # Result page
+        ├── sitemap.ts            # Auto-generated sitemap
+        └── robots.ts             # robots.txt
+```
+
+---
+
+## Local Setup
+
+### Prerequisites
 
 - Python 3.11+
-- Dependencies in `requirements.txt`:
-  ```
-  fastapi==0.104.1
-  uvicorn==0.24.0
-  httpx[http2]==0.27.0
-  beautifulsoup4==4.12.2
-  pandas>=2.2.3
-  playwright==1.58.0
-  ```
+- PostgreSQL 14+
+- Node.js 18+
+- Telegram bot token from [@BotFather](https://t.me/BotFather)
 
----
-
-## Setup
-
-### Local
+### 1. Clone & configure
 
 ```bash
-# 1. Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+git clone https://github.com/Kadyan25/Sarkari_naukri.git
+cd Sarkari_naukri
 
-# 2. Install dependencies
+# Backend env
+cp .env.example .env
+# Fill in DATABASE_URL and TELEGRAM_BOT_TOKEN in .env
+
+# Frontend env
+cp frontend/.env.example frontend/.env.local
+# Set NEXT_PUBLIC_API_URL=http://localhost:8000 in frontend/.env.local
+```
+
+### 2. Backend
+
+```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Mac/Linux
+
 pip install -r requirements.txt
 
-# 3. Install Playwright browser (Chromium only)
-playwright install chromium
+# Create the database
+psql -U postgres -c "CREATE DATABASE haryana_naukri;"
 
-# 4. Start the server
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --reload --port 8000
 ```
 
-### Docker
+Server runs at **http://localhost:8000**
+
+### 3. Frontend
 
 ```bash
-# Build
-docker build -t seo-crawler .
-
-# Run
-docker run -p 8000:8000 seo-crawler
+cd frontend
+npm install
+npm run dev
 ```
 
-The Dockerfile handles all Playwright/Chromium system dependencies automatically.
+Frontend runs at **http://localhost:3000**
 
 ---
 
-## Configuration
+## Testing
 
-Edit `config.py` to set your Google PageSpeed Insights API key:
+### 1. Health check
 
-```python
-PAGESPEED_API_KEY = "your-key-here"
+```bash
+curl http://localhost:8000/api/health
+# Expected: {"status":"ok","service":"haryana-naukri-api"}
 ```
 
-Get a free key at: https://developers.google.com/speed/docs/insights/v5/get-started
+### 2. Trigger first scrape
 
-If the key is left blank or invalid, PageSpeed results will be skipped — all other audit data is still collected.
+```bash
+curl -X POST http://localhost:8000/api/scrape/trigger
+```
+
+Wait 5–10 seconds then verify:
+
+```bash
+python verify.py
+```
+
+Expected output:
+```
+=======================================================
+  HARYANA NAUKRI — DB VERIFICATION REPORT
+=======================================================
+  Total jobs      : 45
+  Haryana jobs    : 45
+  Active jobs     : 40
+  Missing last_date : 3
+  Duplicate slugs   : 0
+✅ Job count OK (45 jobs)
+
+--- Category Breakdown ---
+  hssc            18
+  police           8
+  hpsc             7
+```
+
+### 3. Test API endpoints
+
+```bash
+# All active jobs
+curl "http://localhost:8000/api/jobs"
+
+# Filter by category
+curl "http://localhost:8000/api/jobs?category=hssc"
+
+# Filter by qualification
+curl "http://localhost:8000/api/jobs?qualification=graduate"
+
+# Single job by slug
+curl "http://localhost:8000/api/jobs/hssc-clerk-recruitment-2025"
+
+# Personalised recommendations
+curl "http://localhost:8000/api/jobs/recommend?qualification=graduate&age=25"
+```
+
+### 4. Test Telegram Bot
+
+1. Open your bot in Telegram
+2. `/start` — welcome message in Hindi
+3. `/jobs` — 5 latest Haryana jobs with links
+4. `/subscribe` — inline keyboard: qualification → age → category
+5. `/recommend` — jobs matching your saved profile
+6. `/stop` — unsubscribe
+
+### 5. Test Frontend
+
+Open **http://localhost:3000** and check:
+
+- [ ] Homepage loads with job cards
+- [ ] Category tabs (HSSC / Police / Banking etc.) filter correctly
+- [ ] Clicking a job opens the detail page with countdown timer
+- [ ] `/admit-card` and `/result` pages load
+- [ ] `/sitemap.xml` returns XML listing all job URLs
+- [ ] `/robots.txt` is accessible
+- [ ] Looks correct on 360px screen width (mobile)
 
 ---
 
 ## API Reference
 
-Base URL: `http://localhost:8000`
+| Method | Endpoint | Params | Description |
+|--------|----------|--------|-------------|
+| GET | `/api/health` | — | Health check |
+| GET | `/api/jobs` | `category`, `qualification`, `status`, `page`, `limit` | List jobs |
+| GET | `/api/jobs/recommend` | `qualification`, `age`, `category` | Personalised jobs |
+| GET | `/api/jobs/{slug}` | — | Single job detail |
+| POST | `/api/subscribe/telegram` | `telegram_id`, `categories`, `qualification` | Subscribe |
+| DELETE | `/api/subscribe/telegram/{id}` | — | Unsubscribe |
+| POST | `/api/scrape/trigger` | — | Manual scrape trigger |
 
 ---
 
-### POST `/api/audit`
+## Environment Variables
 
-Start an audit as a background job. Returns immediately with a `job_id`.
+### Backend (`.env`)
 
-**Request body:**
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | `postgresql://user:pass@host:5432/haryana_naukri` |
+| `TELEGRAM_BOT_TOKEN` | ✅ | From @BotFather |
+| `NCS_API_KEY` | ⬜ | NCS Portal — register at ncs.gov.in |
+| `PAGESPEED_API_KEY` | ⬜ | Optional |
 
-```json
-{
-  "url": "https://example.com",
-  "lead_name": "Client Name",
-  "max_pages": 200,
-  "js_render": true
-}
-```
+### Frontend (`frontend/.env.local`)
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `url` | string | required | Full URL including scheme |
-| `lead_name` | string | `"Test Lead"` | Label for reports and job list |
-| `max_pages` | integer | `200` | Maximum pages to crawl |
-| `js_render` | boolean | `true` | Enable Playwright JS rendering for thin pages |
-
-**Response:**
-
-```json
-{
-  "job_id": "3f8a91c2-...",
-  "status": "queued"
-}
-```
-
-**Example:**
-
-```bash
-curl -X POST http://localhost:8000/api/audit \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com", "lead_name": "Example Co", "max_pages": 100}'
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | ✅ | Backend URL e.g. `http://localhost:8000` |
+| `NEXT_PUBLIC_SITE_URL` | ✅ | Your domain e.g. `https://yourdomain.in` |
+| `NEXT_PUBLIC_ADSENSE_ID` | ⬜ | Google AdSense publisher ID |
 
 ---
 
-### GET `/api/status/{job_id}`
+## Deploy
 
-Poll the status of a running or completed job.
+### Backend → Railway
 
-**Response fields:**
+1. [railway.app](https://railway.app) → New Project → Deploy from GitHub
+2. Add PostgreSQL plugin — `DATABASE_URL` is set automatically
+3. Add env vars: `TELEGRAM_BOT_TOKEN`, `NCS_API_KEY`
+4. Railway picks up `railway.toml` + `Dockerfile` automatically
+5. After deploy: `POST /api/scrape/trigger` to seed the database
 
-| Field | Description |
-|---|---|
-| `status` | `queued` / `running` / `completed` / `error` |
-| `url` | Site that was audited |
-| `lead_name` | Label passed at creation |
-| `created_at` | ISO timestamp |
-| `updated_at` | ISO timestamp |
-| `js_enrichment_used` | Whether JS rendering ran on any page |
-| `error` | Error message if status is `error` |
-| `result` | Full audit JSON (only when `completed`) |
-| `summary` | Plain-text 12-section summary (only when `completed`) |
+### Frontend → Vercel
 
-**Example:**
-
-```bash
-curl http://localhost:8000/api/status/3f8a91c2-...
-```
+1. [vercel.com](https://vercel.com) → New Project → Import repo
+2. Set **Root Directory** to `frontend/`
+3. Add env vars: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_ADSENSE_ID`
+4. Deploy — `vercel.json` is picked up automatically
+5. Submit `https://yourdomain.in/sitemap.xml` to Google Search Console
 
 ---
 
-### GET `/api/jobs`
+## Data Sources
 
-List recent jobs.
+| Source | Type | What it scrapes |
+|--------|------|----------------|
+| SarkariResult /haryana/ | Scrape | Aggregated Haryana jobs — fastest source |
+| hssc.gov.in | Scrape | HSSC official recruitments |
+| hpsc.gov.in | Scrape | HPSC official recruitments |
+| haryanapolicerecruitment.gov.in | Scrape | Police recruitments |
+| hreyajna.gov.in | Scrape | Haryana rojgar portal |
+| ncs.gov.in API | API | Official govt jobs (requires API key) |
 
-**Query params:**
-
-| Param | Default | Description |
-|---|---|---|
-| `limit` | `50` | Max jobs to return |
-
-**Example:**
-
-```bash
-curl "http://localhost:8000/api/jobs?limit=20"
-```
+All sources run concurrently every 30 minutes via APScheduler.
 
 ---
 
-### GET `/api/export/{job_id}/csv`
+## Common Issues
 
-Download all crawled pages as a CSV file. One row per page, all fields included.
+**asyncpg connection error on startup**
+Check `DATABASE_URL` in `.env` and confirm PostgreSQL is running.
 
-```bash
-curl http://localhost:8000/api/export/3f8a91c2-.../csv -o audit.csv
-```
+**Telegram bot not responding**
+Check `TELEGRAM_BOT_TOKEN` is set correctly. Only one bot instance can poll at a time.
 
----
+**0 jobs after scrape**
+Run `python verify.py`. Check logs for scraper errors. Confirm network access to govt sites.
 
-### GET `/api/export/{job_id}/json`
-
-Download the full audit as a JSON file, including `result`, `summary`, and raw `pages_data`.
-
-```bash
-curl http://localhost:8000/api/export/3f8a91c2-.../json -o audit.json
-```
-
----
-
-### GET `/api/report/{job_id}/client`
-
-Returns a client-facing Markdown report. Designed to be sent to clients — plain language, 🔴/🟡/✅ signals, no internal implementation details.
-
-```bash
-curl http://localhost:8000/api/report/3f8a91c2-.../client
-```
-
----
-
-### GET `/api/report/{job_id}/internal`
-
-Returns a full technical Markdown report with per-page tables, all metrics, and implementation notes. For internal/agency use.
-
-```bash
-curl http://localhost:8000/api/report/3f8a91c2-.../internal
-```
-
----
-
-### GET `/test-simple?url=...`
-
-Synchronous single-URL audit (no job queue). Crawls up to 50 pages and returns the full result inline. Useful for quick tests.
-
-```bash
-curl "http://localhost:8000/test-simple?url=https://example.com"
-```
-
----
-
-### GET `/summary?url=...`
-
-Same as `/test-simple` but also returns the plain-text 12-section summary alongside the JSON result.
-
----
-
-### GET `/debug-pages?url=...`
-
-Returns raw `pages_data` array — every crawled page with all extracted fields. Useful for debugging extraction issues.
-
----
-
-## What Gets Audited
-
-### On-Page Signals (per page)
-- Title tag: presence, length (short < 30, long > 60)
-- Meta description: presence, length (short < 70, long > 160)
-- H1: presence, multiple H1s
-- Canonical tag: self-referencing, mismatch vs. final URL, pointing outside crawl
-- Robots meta: noindex, nofollow
-- OG tags: og:title, og:description, og:image
-- Twitter card tags
-- Images: alt text missing count
-- Mixed content (HTTP assets on HTTPS page)
-- Hreflang tags: presence and target languages
-- Schema markup: JSON-LD @type values detected
-- Pagination: rel=prev/next links
-- Word count, paragraph count (thin content detection)
-- Response time (ms) and page size (KB)
-- HTTP status code and final URL after redirects
-
-### URL Health
-- Uppercase letters in path
-- Path length > 115 characters
-- Underscores in path
-- Special characters in path
-- Trailing slash inconsistency across the site
-
-### Site-Wide Checks
-- robots.txt: exists, allows homepage, crawl-delay directive
-- Sitemap: found at `/sitemap.xml`, `/sitemap_index.xml`, `/wp-sitemap.xml`, `/news-sitemap.xml`
-- Redirect setup: www ↔ non-www, HTTP → HTTPS
-- Broken external links: HEAD/GET check on up to 80 external links
-- Duplicate titles across site
-- Duplicate meta descriptions across site
-- Orphan pages (pages with no internal links pointing to them)
-- Canonical conflicts: pages whose canonical points outside the crawled set
-
-### Core Web Vitals (via Google PageSpeed Insights)
-Sampled on up to 5 pages (homepage + highest-traffic pages):
-
-| Metric | Source |
-|---|---|
-| Performance Score | Lighthouse lab (0–100) |
-| LCP (Largest Contentful Paint) | CrUX field data, Lighthouse fallback |
-| INP (Interaction to Next Paint) | CrUX field data |
-| CLS (Cumulative Layout Shift) | CrUX field data |
-| FCP (First Contentful Paint) | Lighthouse lab |
-| TBT (Total Blocking Time) | Lighthouse lab |
-| Speed Index | Lighthouse lab |
-| CWV Category | GOOD / NEEDS_IMPROVEMENT / POOR |
-
----
-
-## JS Rendering
-
-When `js_render: true`, a Playwright subprocess (`js_worker.py`) re-renders pages that appear to have thin content (word count < 200). The worker:
-
-1. Receives sorted pages (lowest word count first)
-2. Renders up to `max(3, min(8, thin_page_count))` pages using Chromium
-3. Returns enriched `pages_data` — the main audit then re-runs analysis on the enriched set
-
-This targets JS-rendered pages (React/Vue/Angular SPAs) without rendering the entire site through a headless browser, keeping runtime reasonable.
-
----
-
-## Data Persistence
-
-All jobs are stored in `audits.db` (SQLite) in the project root. The schema:
-
-| Column | Description |
-|---|---|
-| `job_id` | UUID primary key |
-| `status` | queued / running / completed / error |
-| `url` | Target site URL |
-| `lead_name` | Label |
-| `created_at` | ISO timestamp |
-| `updated_at` | ISO timestamp |
-| `result_json` | Full audit result (JSON text) |
-| `summary` | Plain-text 12-section summary |
-| `pages_data_json` | Raw per-page crawl data (JSON text) |
-| `js_enrichment_used` | 0 or 1 |
-| `error` | Error message if failed |
-
-The database is created automatically on first startup. The file persists between restarts.
-
----
-
-## Typical Workflow
-
-```
-1.  POST /api/audit          →  get job_id
-2.  GET  /api/status/{id}    →  poll until status = "completed"
-3a. GET  /api/report/{id}/client    →  send to client (Markdown)
-3b. GET  /api/report/{id}/internal  →  internal review
-4.  GET  /api/export/{id}/csv       →  import into spreadsheet
-```
-
----
-
-## Known Limitations
-
-- **Backlinks** — Cannot detect inbound backlinks. This requires crawling the full web. Only outbound external links are checked for health. For backlink data, integrate DataForSEO's API.
-- **Authentication** — No API key auth on endpoints currently. Do not expose this publicly without adding auth.
-- **Rate limiting** — No built-in rate limiting. Run behind a reverse proxy (nginx/caddy) if exposing externally.
-- **JavaScript-heavy SPAs** — JS rendering is sampled, not full-site. Deep SPA content (pagination, filters, infinite scroll) may not be fully captured.
-- **PageSpeed quota** — The free PageSpeed API key has a daily request limit. Sampling is capped at 5 pages per audit to stay within limits.
-- **Google Search Console** — GSC API is scoped to verified site owners only. Integration requires an OAuth flow and a UI for the consent screen — not yet implemented.
+**Frontend shows empty job list**
+Check `NEXT_PUBLIC_API_URL` in `frontend/.env.local` points to the running backend.
