@@ -53,8 +53,10 @@ SOURCES = {
     "haryana_police":     "https://haryanapolice.gov.in/Public_Notice.aspx",
     # Note: hreyajna.gov.in dead — replaced with haryanajobs.in aggregator
     "haryanajobs":        "https://www.haryanajobs.in/",
-    # AGGREGATOR — fastest + most data (geo-blocked outside India)
+    # AGGREGATORS
     "sarkariresult_hr":   "https://www.sarkariresult.com/haryana/",
+    # sarkarinaukri.com — cross-verification source
+    "sarkarinaukri":      "https://www.sarkarinaukri.com/sarkari-naukri-haryana/",
     # ALL-INDIA — add after Haryana working
     "ssc":                "https://ssc.gov.in/",
     "upsc":               "https://upsc.gov.in/",

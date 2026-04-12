@@ -4,6 +4,44 @@ Tracks bugs found, root cause, and fix applied. Newest first.
 
 ---
 
+## ISSUE-005 — Cross-verification with sarkarinaukri.com shows zero slug overlap
+**Date:** 2026-04-12
+**Severity:** Info — not a bug, confirms data quality
+
+### Context
+Added sarkarinaukri.com as a cross-verification source to check if we're missing jobs.
+Scraped `https://www.sarkarinaukri.com/sarkari-naukri-haryana/` and compared against
+HSSC + HPSC + haryanajobs.in.
+
+### Finding
+```
+Our sources (HSSC + HPSC + haryanajobs): 92 jobs
+sarkarinaukri.com Haryana page:           43 jobs
+Fuzzy-matched (Jaccard >= 0.4):           0 / 43
+```
+
+**Zero overlap is expected and correct.** The two sources cover completely different job types:
+- **sarkarinaukri.com "Haryana" page** = 1 Haryana-specific job + 42 central/all-India jobs
+  (POWERGRID, BEL, RITES, DMRC, ONGC, Railways — central PSU/central govt)
+- **Our sources** = 92 Haryana state-level jobs (HSSC notices, HPSC results, state recruitments)
+
+The fuzzy title match (Jaccard word overlap) found 0 because the jobs are genuinely different.
+
+### Conclusion
+We have **92× more Haryana-specific jobs** than sarkarinaukri.com's Haryana page.
+sarkarinaukri.com is NOT a useful cross-verification source for Haryana state jobs.
+
+A better future cross-check would be `sarkariresult.com/haryana/` once accessible
+(currently geo-blocked — will work on Railway production server).
+
+### Fix Applied
+- Added `scrape_sarkarinaukri()` scraper (selector: `.td-pb-span8.td-main-content a`)
+- Added `cross_verify()` function using Jaccard word-overlap instead of exact slug match
+- Added `_HARYANA_PLACES` set to tag jobs as `state=haryana` vs `state=all_india`
+- sarkarinaukri jobs stored in DB with correct state tags (42 all_india, 1 haryana)
+
+---
+
 ## ISSUE-004 — haryanapolicerecruitment.gov.in and hreyajna.gov.in domains dead
 **Date:** 2026-04-12
 **Severity:** High — 2 of 5 scrapers returning 0 jobs

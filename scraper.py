@@ -351,6 +351,117 @@ async def scrape_haryanajobs() -> List[Dict[str, Any]]:
     return result
 
 
+# Haryana city/district names for location-based filtering
+_HARYANA_PLACES = {
+    "haryana", "hssc", "hpsc", "hkrn", "rohtak", "hisar", "karnal", "ambala",
+    "gurugram", "gurgaon", "faridabad", "panipat", "sonipat", "jhajjar", "rewari",
+    "jind", "kaithal", "sirsa", "bhiwani", "palwal", "nuh", "mahendragarh",
+    "fatehabad", "yamunanagar", "panchkula", "kurukshetra",
+}
+
+
+async def scrape_sarkarinaukri() -> List[Dict[str, Any]]:
+    """
+    sarkarinaukri.com Haryana page — used for cross-verification.
+    Selector: .td-pb-span8.td-main-content a (main content column, not sidebar).
+    Page mixes Haryana-specific + all-India jobs; we store both but tag state correctly.
+    """
+    html = await fetch_page(SOURCES["sarkarinaukri"])
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, "lxml")
+    main = soup.select_one(".td-pb-span8.td-main-content")
+    if not main:
+        logger.warning("scrape_sarkarinaukri: main content div not found — site may have changed")
+        return []
+
+    jobs: List[Dict[str, Any]] = []
+    for a in main.find_all("a", href=True):
+        raw = a.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", raw).strip()
+        href = a["href"]
+
+        if len(text) < 20:
+            continue
+        if "sarkarinaukri.com" not in href:
+            continue
+        tl = text.lower()
+        if not any(kw in tl for kw in
+                   ["recruitment", "vacancy", "result", "admit", "notification",
+                    "interview", "selection", "post", "bharti"]):
+            continue
+
+        # Determine if this job is Haryana-specific
+        is_haryana = any(place in (text + href).lower() for place in _HARYANA_PLACES)
+
+        jobs.append({
+            "title":         text,
+            "slug":          slugify(text),
+            "official_url":  href,
+            "source":        "sarkarinaukri",
+            "category":      detect_category(text),
+            "qualification": detect_qualification(text),
+            "state":         "haryana" if is_haryana else "all_india",
+            "status":        "active",
+        })
+
+    result = _dedup(jobs)
+    logger.info("scrape_sarkarinaukri: %d jobs (%d Haryana-specific)",
+                len(result),
+                sum(1 for j in result if j["state"] == "haryana"))
+    return result
+
+
+def _title_tokens(title: str) -> set:
+    """Lowercase significant words from a title (3+ chars, no stopwords)."""
+    stopwords = {"for", "the", "and", "in", "of", "to", "a", "an", "by",
+                 "on", "at", "is", "are", "from", "with", "as", "all", "its"}
+    return {w for w in re.findall(r"[a-z0-9]+", title.lower())
+            if len(w) >= 3 and w not in stopwords}
+
+
+def _titles_match(t1: str, t2: str, threshold: float = 0.4) -> bool:
+    """True if two titles share enough significant words (Jaccard >= threshold)."""
+    a, b = _title_tokens(t1), _title_tokens(t2)
+    if not a or not b:
+        return False
+    return len(a & b) / len(a | b) >= threshold
+
+
+async def cross_verify(source_jobs: List[Dict[str, Any]],
+                       verify_jobs: List[Dict[str, Any]]) -> dict:
+    """
+    Compare two job lists by fuzzy title similarity (Jaccard word overlap).
+    Exact slug match fails when sites use different title wording for the same job.
+    Returns match stats — used to gauge how complete our scraping is.
+    """
+    matched_verify_idx: set = set()
+    matched_source_idx: set = set()
+
+    for si, sj in enumerate(source_jobs):
+        for vi, vj in enumerate(verify_jobs):
+            if vi in matched_verify_idx:
+                continue
+            if _titles_match(sj["title"], vj["title"]):
+                matched_source_idx.add(si)
+                matched_verify_idx.add(vi)
+                break
+
+    only_in_verify = [verify_jobs[i] for i in range(len(verify_jobs)) if i not in matched_verify_idx]
+    only_in_source = [source_jobs[i] for i in range(len(source_jobs)) if i not in matched_source_idx]
+
+    return {
+        "source_count":    len(source_jobs),
+        "verify_count":    len(verify_jobs),
+        "matched":         len(matched_verify_idx),
+        "only_in_source":  len(only_in_source),
+        "only_in_verify":  len(only_in_verify),
+        "only_in_verify_jobs": only_in_verify,
+        "match_pct":       round(len(matched_verify_idx) / max(len(verify_jobs), 1) * 100, 1),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Master scrape — all sources run in parallel, all DB writes run in parallel
 # ---------------------------------------------------------------------------
@@ -371,13 +482,14 @@ async def scrape_all_sources() -> int:
         scrape_hpsc(),
         scrape_haryana_police(),
         scrape_haryanajobs(),
+        scrape_sarkarinaukri(),
         return_exceptions=True,   # one failing scraper won't kill the rest
     )
 
     # Flatten + filter out exceptions
     all_jobs: List[Dict[str, Any]] = []
     scraper_names = [
-        "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs",
+        "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs", "sarkarinaukri",
     ]
     for name, result in zip(scraper_names, results):
         if isinstance(result, Exception):
