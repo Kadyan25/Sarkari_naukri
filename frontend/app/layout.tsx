@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import { Noto_Sans, Noto_Sans_Devanagari } from "next/font/google";
 import "./globals.css";
+
+const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID || "";
 
 // ── next/font — zero render-blocking, auto-optimised, self-hosted ──────────
 const notoSans = Noto_Sans({
@@ -53,6 +56,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* DNS prefetch for API */}
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} />
       </head>
+      {/* Google AdSense — loads after page is interactive (afterInteractive) */}
+      {ADSENSE_ID && (
+        <Script
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_ID}`}
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
+      )}
       <body className="bg-gray-50 text-gray-900 min-h-screen">
         {/* Header */}
         <header className="bg-brand shadow-md sticky top-0 z-50">

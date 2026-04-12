@@ -1,17 +1,23 @@
+# Core
 fastapi==0.104.1
-uvicorn==0.24.0
+uvicorn[standard]==0.24.0
+
+# HTTP + scraping
 httpx[http2]==0.27.0
 beautifulsoup4==4.12.2
-lxml>=5.2.0
-pandas>=2.2.3
-playwright==1.58.0
-python-dotenv>=1.0.0
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-bcrypt<4.0.0
-google-auth>=2.0.0
-google-auth-oauthlib>=1.0.0
-google-api-python-client>=2.0.0
-apscheduler>=3.10.0
-weasyprint>=60.0
-markdown>=3.4.0
+lxml==4.9.3
+
+# Database
+asyncpg==0.29.0
+
+# Scheduler
+apscheduler==3.10.4
+
+# Telegram bot
+python-telegram-bot[webhooks]==21.0
+
+# Config
+python-dotenv==1.0.0
+
+# Data validation
+pydantic==2.5.0

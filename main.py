@@ -17,6 +17,7 @@ from db import (
 )
 from scraper import close_client
 from scheduler import start_scheduler, stop_scheduler
+from telegram_bot import init_bot, stop_bot
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s — %(message)s")
@@ -31,10 +32,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     await init_db()
     logger.info("DB initialised")
+    await init_bot()
     start_scheduler()
     yield
     stop_scheduler()
-    await close_client()   # close shared httpx client cleanly
+    await stop_bot()
+    await close_client()
     await close_db()
     logger.info("Shutdown complete")
 
