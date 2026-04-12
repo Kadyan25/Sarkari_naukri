@@ -206,10 +206,11 @@ async def scrape_hssc() -> List[Dict[str, Any]]:
 
     for a in soup.select("a[href]"):
         text = a.get_text(strip=True)
-        if not text or len(text) < 10:
+        if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
-                   ["recruitment", "bharti", "vacancy", "advt", "notification", "post"]):
+                   ["recruitment", "bharti", "vacancy", "advt", "notification", "post",
+                    "result", "admit", "answer key", "merit", "syllabus"]):
             continue
         href = a["href"]
         jobs.append({
@@ -239,10 +240,11 @@ async def scrape_hpsc() -> List[Dict[str, Any]]:
 
     for a in soup.select("a[href]"):
         text = a.get_text(strip=True)
-        if not text or len(text) < 10:
+        if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
-                   ["recruitment", "vacancy", "advt", "notification", "post", "bharti"]):
+                   ["recruitment", "vacancy", "advt", "notification", "post", "bharti",
+                    "result", "admit", "answer key", "merit", "interview"]):
             continue
         href = a["href"]
         jobs.append({
@@ -272,10 +274,11 @@ async def scrape_haryana_police() -> List[Dict[str, Any]]:
 
     for a in soup.select("a[href]"):
         text = a.get_text(strip=True)
-        if not text or len(text) < 10:
+        if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
-                   ["recruitment", "constable", "vacancy", "bharti", "notification", "police"]):
+                   ["recruitment", "constable", "vacancy", "bharti", "notification", "police",
+                    "result", "admit", "answer key", "selection"]):
             continue
         href = a["href"]
         jobs.append({
@@ -305,10 +308,11 @@ async def scrape_hreyajna() -> List[Dict[str, Any]]:
 
     for a in soup.select("a[href]"):
         text = a.get_text(strip=True)
-        if not text or len(text) < 10:
+        if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
-                   ["recruitment", "vacancy", "bharti", "job", "notification", "apply"]):
+                   ["recruitment", "vacancy", "bharti", "job", "notification", "apply",
+                    "result", "admit", "naukri", "post"]):
             continue
         href = a["href"]
         jobs.append({
