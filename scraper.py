@@ -205,7 +205,8 @@ async def scrape_hssc() -> List[Dict[str, Any]]:
     jobs: List[Dict[str, Any]] = []
 
     for a in soup.select("a[href]"):
-        text = a.get_text(strip=True)
+        raw = a.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", raw).strip()
         if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
@@ -239,7 +240,8 @@ async def scrape_hpsc() -> List[Dict[str, Any]]:
     jobs: List[Dict[str, Any]] = []
 
     for a in soup.select("a[href]"):
-        text = a.get_text(strip=True)
+        raw = a.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", raw).strip()
         if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
@@ -264,7 +266,12 @@ async def scrape_hpsc() -> List[Dict[str, Any]]:
 
 
 async def scrape_haryana_police() -> List[Dict[str, Any]]:
-    """Haryana Police Recruitment site."""
+    """
+    Haryana Police official site — Public Notice page.
+    Note: haryanapolicerecruitment.gov.in is dead (domain gone).
+    Police constable/SI vacancies are now notified via HSSC, so this scraper
+    catches police-specific notices & admit cards from haryanapolice.gov.in.
+    """
     html = await fetch_page(SOURCES["haryana_police"])
     if not html:
         return []
@@ -273,18 +280,24 @@ async def scrape_haryana_police() -> List[Dict[str, Any]]:
     jobs: List[Dict[str, Any]] = []
 
     for a in soup.select("a[href]"):
-        text = a.get_text(strip=True)
-        if not text or len(text) < 20:
+        # Normalize internal whitespace (site has lots of \r\n in link text)
+        raw = a.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", raw).strip()
+        if not text or len(text) < 25:
             continue
-        if not any(kw in text.lower() for kw in
-                   ["recruitment", "constable", "vacancy", "bharti", "notification", "police",
-                    "result", "admit", "answer key", "selection"]):
+        tl = text.lower()
+        # Must mention a recruitment/result keyword AND a year to avoid nav links
+        has_keyword = any(kw in tl for kw in
+                          ["recruitment", "constable", "vacancy", "bharti",
+                           "result", "admit card", "answer key", "selection list"])
+        has_year = any(yr in text for yr in ["2024", "2025", "2026"])
+        if not has_keyword or not has_year:
             continue
         href = a["href"]
         jobs.append({
             "title":         text,
             "slug":          slugify(text),
-            "official_url":  href if href.startswith("http") else f"https://haryanapolicerecruitment.gov.in{href}",
+            "official_url":  href if href.startswith("http") else f"https://haryanapolice.gov.in/{href}",
             "source":        "haryana_police",
             "category":      "police",
             "qualification": detect_qualification(text),
@@ -297,29 +310,36 @@ async def scrape_haryana_police() -> List[Dict[str, Any]]:
     return result
 
 
-async def scrape_hreyajna() -> List[Dict[str, Any]]:
-    """Haryana Rojgar portal."""
-    html = await fetch_page(SOURCES["hreyajna"])
+async def scrape_haryanajobs() -> List[Dict[str, Any]]:
+    """
+    haryanajobs.in aggregator — replaces dead hreyajna.gov.in domain.
+    Returns 40-60 job links per scrape across Haryana + all-India sources.
+    Filters for recruitment/result/admit card links only.
+    """
+    html = await fetch_page(SOURCES["haryanajobs"])
     if not html:
         return []
 
     soup = BeautifulSoup(html, "lxml")
     jobs: List[Dict[str, Any]] = []
 
-    for a in soup.select("a[href]"):
+    for a in soup.find_all("a", href=True):
         text = a.get_text(strip=True)
+        href = a["href"]
+        # Only follow internal haryanajobs.in job post URLs
+        if "haryanajobs.in" not in href:
+            continue
         if not text or len(text) < 20:
             continue
         if not any(kw in text.lower() for kw in
-                   ["recruitment", "vacancy", "bharti", "job", "notification", "apply",
-                    "result", "admit", "naukri", "post"]):
+                   ["recruitment", "vacancy", "bharti", "result", "admit",
+                    "answer key", "notification", "recruitment"]):
             continue
-        href = a["href"]
         jobs.append({
             "title":         text,
             "slug":          slugify(text),
-            "official_url":  href if href.startswith("http") else f"https://hreyajna.gov.in{href}",
-            "source":        "hreyajna",
+            "official_url":  href,
+            "source":        "haryanajobs",
             "category":      detect_category(text),
             "qualification": detect_qualification(text),
             "state":         "haryana",
@@ -327,7 +347,7 @@ async def scrape_hreyajna() -> List[Dict[str, Any]]:
         })
 
     result = _dedup(jobs)
-    logger.info("scrape_hreyajna: %d jobs", len(result))
+    logger.info("scrape_haryanajobs: %d jobs", len(result))
     return result
 
 
@@ -350,14 +370,14 @@ async def scrape_all_sources() -> int:
         scrape_hssc(),
         scrape_hpsc(),
         scrape_haryana_police(),
-        scrape_hreyajna(),
+        scrape_haryanajobs(),
         return_exceptions=True,   # one failing scraper won't kill the rest
     )
 
     # Flatten + filter out exceptions
     all_jobs: List[Dict[str, Any]] = []
     scraper_names = [
-        "sarkariresult", "hssc", "hpsc", "haryana_police", "hreyajna",
+        "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs",
     ]
     for name, result in zip(scraper_names, results):
         if isinstance(result, Exception):

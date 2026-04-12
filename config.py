@@ -45,12 +45,15 @@ NCS_API_KEY = os.getenv("NCS_API_KEY", "")
 NCS_API_BASE = "https://www.ncs.gov.in/api"
 
 SOURCES = {
-    # HARYANA — scrape first
+    # HARYANA OFFICIAL SITES
     "hssc":               "https://hssc.gov.in/",
     "hpsc":               "https://hpsc.gov.in/",
-    "haryana_police":     "https://haryanapolicerecruitment.gov.in/",
-    "hreyajna":           "https://hreyajna.gov.in/",
-    # AGGREGATOR BACKUP — fastest to implement, start here
+    # Note: haryanapolicerecruitment.gov.in is dead — police vacancies go via HSSC
+    # haryanapolice.gov.in has no recruitment listing; kept as fallback notice page
+    "haryana_police":     "https://haryanapolice.gov.in/Public_Notice.aspx",
+    # Note: hreyajna.gov.in dead — replaced with haryanajobs.in aggregator
+    "haryanajobs":        "https://www.haryanajobs.in/",
+    # AGGREGATOR — fastest + most data (geo-blocked outside India)
     "sarkariresult_hr":   "https://www.sarkariresult.com/haryana/",
     # ALL-INDIA — add after Haryana working
     "ssc":                "https://ssc.gov.in/",
