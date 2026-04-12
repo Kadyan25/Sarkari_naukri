@@ -1,0 +1,52 @@
+/* No @import — fonts loaded via next/font/google in layout.tsx (zero render-blocking) */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-noto-sans), sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Hindi text — uses Noto Sans Devanagari CSS variable from next/font */
+  .hindi {
+    font-family: var(--font-noto-devanagari), var(--font-noto-sans), sans-serif;
+  }
+
+  /* Minimum touch target for mobile (44px) */
+  button, a {
+    min-height: 44px;
+  }
+}
+
+@layer components {
+  .badge {
+    @apply inline-block px-2 py-0.5 rounded text-xs font-semibold;
+  }
+
+  .badge-hssc    { @apply bg-blue-100 text-blue-800; }
+  .badge-hpsc    { @apply bg-purple-100 text-purple-800; }
+  .badge-police  { @apply bg-gray-100 text-gray-800; }
+  .badge-banking { @apply bg-green-100 text-green-800; }
+  .badge-railway { @apply bg-orange-100 text-orange-800; }
+  .badge-ssc     { @apply bg-yellow-100 text-yellow-800; }
+  .badge-teacher { @apply bg-pink-100 text-pink-800; }
+  .badge-other   { @apply bg-slate-100 text-slate-700; }
+
+  .btn-primary {
+    @apply bg-brand text-white px-4 py-2 rounded-lg font-semibold
+           hover:bg-brand-dark active:scale-95 transition-all duration-150
+           text-sm;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-gray-100 shadow-sm p-4;
+  }
+
+  /* Skeleton shimmer animation for loading states */
+  .skeleton {
+    @apply bg-gray-200 rounded animate-pulse;
+  }
+}
