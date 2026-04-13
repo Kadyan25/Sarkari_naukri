@@ -57,8 +57,8 @@ SOURCES = {
     "rpsc":           "https://rpsc.rajasthan.gov.in/",     # Rajasthan PSC
     "jkpsc":          "https://jkpsc.nic.in/",              # J&K PSC
     "ppsc":           "https://ppsc.gov.in/",               # Punjab PSC — 455 links
-    # hppsc.hp.gov.in — SSL legacy renegotiation error, unscrapeable on Python 3.11
-    # psc.uk.gov.in (Uttarakhand) — SSL legacy renegotiation error, unscrapeable
+    "hppsc":          "https://hppsc.hp.gov.in/",           # Himachal Pradesh PSC (legacy TLS)
+    "ukpsc":          "https://psc.uk.gov.in/",             # Uttarakhand PSC (legacy TLS)
     # ── HINDI BELT ───────────────────────────────────────────────────────────
     "uppsc":          "https://uppsc.up.nic.in/",           # Uttar Pradesh PSC
     "mppsc":          "https://mppsc.mp.gov.in/",           # Madhya Pradesh PSC

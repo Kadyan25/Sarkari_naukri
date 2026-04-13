@@ -4,6 +4,74 @@ Tracks bugs found, root cause, and fix applied. Newest first.
 
 ---
 
+## ISSUE-007 — HPPSC JS-rendered: legacy TLS fixed but content inaccessible
+**Date:** 2026-04-13
+**Severity:** Low — only adds ~30 HP state jobs; all other scrapers working
+
+### Symptom
+`scrape_hppsc: 0 jobs` even after legacy TLS fix.
+
+### Root Cause
+`hppsc.hp.gov.in` is a fully Angular SPA. The server returns a ~42KB HTML shell
+with nav + footer only. All job listing content is injected via AJAX after page load.
+BeautifulSoup sees 47 links total — all navigation, no job entries.
+
+### Investigation
+- ✅ Legacy TLS now works (SSL_OP_LEGACY_SERVER_CONNECT = 0x4 fix from ISSUE-006)
+- ❌ `/CommonControls/ViewContinuousLinkPage?qs=...` returns same empty shell
+- ❌ No sitemap.xml (404)
+- ❌ No `/api/*` endpoints exposed
+- ❌ 0 tables, 0 list items, 0 PDF links in static HTML
+
+### Fix Applied
+`scrape_hppsc()` returns `[]` immediately with a log message.
+HPPSC is in SOURCES dict for future Playwright support.
+
+### Future Fix
+Add Playwright scraper for JS-rendered sites (separate `scraper_js.py`).
+HPPSC, and any future Angular/React PSC sites would use this path.
+
+---
+
+## ISSUE-006 — UKPSC + HPPSC: UNSAFE_LEGACY_RENEGOTIATION_DISABLED (Python 3.11)
+**Date:** 2026-04-13
+**Severity:** Medium — 2 state PSCs blocked
+
+### Symptom
+```
+ssl.SSLError: UNSAFE_LEGACY_RENEGOTIATION_DISABLED
+```
+Thrown by `hppsc.hp.gov.in` and `psc.uk.gov.in` when using the shared httpx client.
+
+### Root Cause
+OpenSSL 3.x (bundled with Python 3.11) disables legacy TLS renegotiation by default.
+`ssl.OP_LEGACY_SERVER_CONNECT` was only added as a named Python constant in 3.12,
+but the underlying OpenSSL integer `0x4` works in 3.11 too.
+
+### Fix Applied
+**scraper.py — new `_get_legacy_client()` function:**
+```python
+import ssl
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+ctx.options |= 0x4          # SSL_OP_LEGACY_SERVER_CONNECT (raw int, works on Py 3.11)
+ctx.set_ciphers("DEFAULT@SECLEVEL=1")
+_legacy_client = httpx.AsyncClient(verify=ctx, ...)
+```
+
+New `fetch_page_legacy(url)` function uses this client.
+New `scrape_ukpsc()` and `scrape_hppsc()` scrapers use `fetch_page_legacy`.
+`close_client()` updated to also close `_legacy_client` on shutdown.
+
+### Result
+| Site | Before | After |
+|---|---|---|
+| `psc.uk.gov.in` (UKPSC) | SSL error | ✅ 43 jobs |
+| `hppsc.hp.gov.in` (HPPSC) | SSL error | ✅ Connects, but JS-rendered (see ISSUE-007) |
+
+---
+
 ## ISSUE-005 — Cross-verification with sarkarinaukri.com shows zero slug overlap
 **Date:** 2026-04-12
 **Severity:** Info — not a bug, confirms data quality

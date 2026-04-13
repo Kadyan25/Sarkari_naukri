@@ -13,6 +13,7 @@ import asyncio
 import logging
 import random
 import re
+import ssl
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -32,6 +33,12 @@ _semaphore = asyncio.Semaphore(_CONCURRENCY)
 # Created once at import time, reused by all fetch calls
 _client: Optional[httpx.AsyncClient] = None
 
+# Separate client for sites that require legacy TLS renegotiation
+# (hppsc.hp.gov.in, psc.uk.gov.in — Indian NIC servers running old TLS config)
+# ssl.OP_LEGACY_SERVER_CONNECT = 0x4 (added as named constant in Python 3.12,
+# but the integer value works in 3.11 too)
+_legacy_client: Optional[httpx.AsyncClient] = None
+
 
 def _get_client() -> httpx.AsyncClient:
     global _client
@@ -50,12 +57,41 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
+def _get_legacy_client() -> httpx.AsyncClient:
+    """
+    Client for sites that require legacy TLS renegotiation.
+    Uses a custom SSLContext with OP_LEGACY_SERVER_CONNECT (raw int 0x4)
+    which works on Python 3.11 even though the named constant is 3.12+.
+    """
+    global _legacy_client
+    if _legacy_client is None or _legacy_client.is_closed:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        ctx.options |= 0x4          # SSL_OP_LEGACY_SERVER_CONNECT
+        ctx.set_ciphers("DEFAULT@SECLEVEL=1")   # allow weaker ciphers on old NIC servers
+        _legacy_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=8.0, read=15.0, write=5.0, pool=5.0),
+            follow_redirects=True,
+            verify=ctx,
+            limits=httpx.Limits(
+                max_connections=5,
+                max_keepalive_connections=2,
+                keepalive_expiry=30,
+            ),
+        )
+    return _legacy_client
+
+
 async def close_client():
-    """Call on app shutdown to cleanly close the shared client."""
-    global _client
+    """Call on app shutdown to cleanly close both shared clients."""
+    global _client, _legacy_client
     if _client and not _client.is_closed:
         await _client.aclose()
         _client = None
+    if _legacy_client and not _legacy_client.is_closed:
+        await _legacy_client.aclose()
+        _legacy_client = None
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +127,41 @@ async def fetch_page(url: str) -> Optional[str]:
                     delay *= 2
 
     logger.error("fetch_page failed after 3 attempts url=%s", url)
+    return None
+
+
+async def fetch_page_legacy(url: str) -> Optional[str]:
+    """
+    fetch_page variant using the legacy TLS client.
+    Use for sites that throw UNSAFE_LEGACY_RENEGOTIATION_DISABLED errors.
+    """
+    ua = random.choice(_USER_AGENTS)
+    headers = random_headers(ua)
+    client = _get_legacy_client()
+    delay = 1.0
+
+    async with _semaphore:
+        for attempt in range(3):
+            try:
+                resp = await client.get(url, headers=headers)
+                if resp.status_code == 200:
+                    return resp.text
+                if resp.status_code in (429, 503):
+                    wait = delay + random.uniform(0, 0.3)
+                    logger.warning("Rate limited (%s) url=%s — retrying in %.1fs",
+                                   resp.status_code, url, wait)
+                    await asyncio.sleep(wait)
+                    delay *= 2
+                else:
+                    logger.warning("HTTP %s url=%s", resp.status_code, url)
+                    return None
+            except (httpx.TimeoutException, httpx.ConnectError) as exc:
+                logger.warning("Legacy fetch error attempt=%d url=%s: %s", attempt, url, exc)
+                if attempt < 2:
+                    await asyncio.sleep(delay)
+                    delay *= 2
+
+    logger.error("fetch_page_legacy failed after 3 attempts url=%s", url)
     return None
 
 
@@ -566,13 +637,7 @@ async def scrape_jkpsc() -> List[Dict[str, Any]]:
 
 
 async def scrape_ppsc() -> List[Dict[str, Any]]:
-    """
-    Punjab Public Service Commission — 455+ links per scrape.
-    Largest state PSC site we've found; posts all exam/result/admit-card notices.
-    Note: ppsc.gov.in had intermittent SSL errors previously — retry logic in
-    fetch_page handles this. hppsc.hp.gov.in and psc.uk.gov.in are unscrapeable
-    due to Python 3.11 legacy TLS renegotiation incompatibility.
-    """
+    """Punjab Public Service Commission — 455+ links per scrape."""
     html = await fetch_page(SOURCES["ppsc"])
     if not html:
         return []
@@ -582,6 +647,36 @@ async def scrape_ppsc() -> List[Dict[str, Any]]:
             for t, h in _extract_links(soup, _JOB_KW)]
     result = _dedup(jobs)
     logger.info("scrape_ppsc: %d jobs", len(result))
+    return result
+
+
+async def scrape_hppsc() -> List[Dict[str, Any]]:
+    """
+    Himachal Pradesh Public Service Commission.
+    NOTE: hppsc.hp.gov.in is a fully JS-rendered Angular SPA — job listings are
+    injected via AJAX after page load. BeautifulSoup only sees the shell HTML
+    (nav + footer, no listings). Legacy TLS is fixed but content is inaccessible
+    without Playwright. Returns 0 until Playwright is added.
+    """
+    logger.info("scrape_hppsc: JS-rendered site, skipping (0 jobs)")
+    return []
+
+
+async def scrape_ukpsc() -> List[Dict[str, Any]]:
+    """
+    Uttarakhand Public Service Commission.
+    Uses fetch_page_legacy — psc.uk.gov.in requires legacy TLS renegotiation.
+    (old domain ukpsc.gov.in is dead; moved to psc.uk.gov.in)
+    """
+    html = await fetch_page_legacy(SOURCES["ukpsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "ukpsc", "psc", "uttarakhand",
+                       "https://psc.uk.gov.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_ukpsc: %d jobs", len(result))
     return result
 
 
@@ -701,6 +796,8 @@ async def scrape_all_sources() -> int:
         scrape_rpsc(),
         scrape_jkpsc(),
         scrape_ppsc(),
+        scrape_hppsc(),
+        scrape_ukpsc(),
         # Hindi belt
         scrape_uppsc(),
         scrape_mppsc(),
@@ -715,7 +812,7 @@ async def scrape_all_sources() -> int:
     scraper_names = [
         "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs",
         "rrb", "ibps",
-        "rpsc", "jkpsc", "ppsc",
+        "rpsc", "jkpsc", "ppsc", "hppsc", "ukpsc",
         "uppsc", "mppsc", "jpsc", "bpsc",
         "sarkarinaukri",
     ]
