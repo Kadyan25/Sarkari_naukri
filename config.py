@@ -64,8 +64,14 @@ SOURCES = {
     "mppsc":          "https://mppsc.mp.gov.in/",           # Madhya Pradesh PSC
     "jpsc":           "https://jpsc.gov.in/",               # Jharkhand PSC
     "bpsc":           "https://bpsc.bihar.gov.in/whats-new/", # Bihar PSC (old bpsc.bih.nic.in dead)
+    # ── CENTRAL EXAM BODIES ──────────────────────────────────────────────────
+    "upsc":           "https://upsc.gov.in/",               # UPSC Civil Services, NDA, CDS, CAPF
+    "nta_net":        "https://ugcnet.nta.ac.in/",          # UGC-NET / JRF
+    "nta_csir":       "https://csirnet.nta.ac.in/",         # CSIR-NET (science graduates)
     # ── CENTRAL BANKING ──────────────────────────────────────────────────────
     "ibps":           "https://www.ibps.in/",               # IBPS banking recruitment
+    # ── HARYANA TEACHER ELIGIBILITY ──────────────────────────────────────────
+    "htet":           "https://bseh.org.in/home",           # HTET Level 1/2/3 (BSEH Haryana)
     # ── AGGREGATORS ──────────────────────────────────────────────────────────
     "sarkariresult_hr": "https://www.sarkariresult.com/haryana/",
     "sarkarinaukri":    "https://www.sarkarinaukri.com/sarkari-naukri-haryana/",

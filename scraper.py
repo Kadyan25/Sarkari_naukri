@@ -171,14 +171,20 @@ async def fetch_page_legacy(url: str) -> Optional[str]:
 
 def detect_category(title: str) -> str:
     t = title.lower()
-    if "hssc" in t:                                  return "hssc"
-    if "hpsc" in t:                                  return "hpsc"
-    if "police" in t:                                return "police"
-    if "patwari" in t:                               return "patwari"
-    if "teacher" in t or "tgt" in t or "pgt" in t:  return "teacher"
-    if "bank" in t or "ibps" in t or "sbi" in t:    return "banking"
-    if "railway" in t or "rrb" in t:                return "railway"
-    if "ssc" in t:                                   return "ssc"
+    if "hssc" in t:                                                   return "hssc"
+    if "hpsc" in t:                                                   return "hpsc"
+    if "police" in t:                                                 return "police"
+    if "patwari" in t:                                                return "patwari"
+    if "teacher" in t or "tgt" in t or "pgt" in t or "htet" in t:   return "teacher"
+    if "net" in t or "jrf" in t or "ugc" in t or "csir" in t:       return "net_jrf"
+    if "nda" in t or "cds" in t or "afcat" in t or "defence" in t:  return "defence"
+    if any(k in t for k in ("upsc", "ias", "ips", "civil service", "lateral recruit",
+                             "ora ", "recruitment application", "recruitment case",
+                             "recruitment requisition")): return "upsc"
+    if "cgl" in t or "chsl" in t or "mts" in t or "gd constable" in t: return "ssc"
+    if "bank" in t or "ibps" in t or "sbi" in t or "rbi" in t:      return "banking"
+    if "railway" in t or "rrb" in t or "ntpc" in t:                  return "railway"
+    if "ssc" in t:                                                    return "ssc"
     return "other"
 
 
@@ -769,6 +775,82 @@ async def scrape_ibps() -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Central exam body scrapers
+# ---------------------------------------------------------------------------
+
+async def scrape_upsc() -> List[Dict[str, Any]]:
+    """
+    UPSC homepage — Civil Services, NDA, CDS, CAPF, Engineering Services.
+    upsc.gov.in homepage lists all active recruitments + exam notices.
+    ~32 relevant links per scrape including CDS, NDA corrigendums, new advts.
+    """
+    html = await fetch_page(SOURCES["upsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    _UPSC_KW = _JOB_KW + [
+        "examination", "civil services", "nda", "cds", "capf", "ifs",
+        "combined", "engineering services", "geologist", "statistical",
+        "lateral", "ora", "advertisement",
+    ]
+    jobs = [_build_job(t, h, "upsc", detect_category(t), "all_india",
+                       "https://upsc.gov.in")
+            for t, h in _extract_links(soup, _UPSC_KW, min_len=25)]
+    result = _dedup(jobs)
+    logger.info("scrape_upsc: %d jobs", len(result))
+    return result
+
+
+async def scrape_nta_net() -> List[Dict[str, Any]]:
+    """
+    NTA UGC-NET / JRF portal — ugcnet.nta.ac.in.
+    Covers NET June/December cycles, JRF notifications, answer keys, results.
+    Highly relevant for Haryana postgraduate aspirants (assistant professor eligibility).
+    Also check csirnet.nta.ac.in for science graduates.
+    """
+    jobs: List[Dict[str, Any]] = []
+    for key, base in [("nta_net", "https://ugcnet.nta.ac.in"),
+                      ("nta_csir", "https://csirnet.nta.ac.in")]:
+        html = await fetch_page(SOURCES[key])
+        if not html:
+            continue
+        soup = BeautifulSoup(html, "lxml")
+        _NET_KW = _JOB_KW + [
+            "net", "jrf", "ugc", "csir", "cutoff", "answer key", "city intimation",
+            "admit card", "result", "schedule", "notification", "examination",
+        ]
+        batch = [_build_job(t, h, key, "net_jrf", "all_india", base)
+                 for t, h in _extract_links(soup, _NET_KW, min_len=25)]
+        jobs.extend(batch)
+    result = _dedup(jobs)
+    logger.info("scrape_nta_net: %d jobs", len(result))
+    return result
+
+
+async def scrape_htet() -> List[Dict[str, Any]]:
+    """
+    HTET — Haryana Teacher Eligibility Test (bseh.org.in).
+    Conducted by BSEH (Board of School Education Haryana).
+    Covers HTET Level 1/2/3 notifications, admit cards, results.
+    Highly relevant: teaching is one of the top career paths for Haryana aspirants.
+    """
+    html = await fetch_page(SOURCES["htet"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    _HTET_KW = _JOB_KW + [
+        "htet", "tet", "teacher eligibility", "examination", "result",
+        "admit", "notification", "schedule", "press note", "important",
+    ]
+    jobs = [_build_job(t, h, "htet", "teacher", "haryana",
+                       "https://bseh.org.in")
+            for t, h in _extract_links(soup, _HTET_KW, min_len=25)]
+    result = _dedup(jobs)
+    logger.info("scrape_htet: %d jobs", len(result))
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Master scrape — all sources run in parallel, all DB writes run in parallel
 # ---------------------------------------------------------------------------
 
@@ -792,6 +874,10 @@ async def scrape_all_sources() -> int:
         # Central
         scrape_rrb(),
         scrape_ibps(),
+        scrape_upsc(),
+        scrape_nta_net(),
+        # Haryana teacher eligibility
+        scrape_htet(),
         # North / West India
         scrape_rpsc(),
         scrape_jkpsc(),
@@ -811,7 +897,7 @@ async def scrape_all_sources() -> int:
     all_jobs: List[Dict[str, Any]] = []
     scraper_names = [
         "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs",
-        "rrb", "ibps",
+        "rrb", "ibps", "upsc", "nta_net", "htet",
         "rpsc", "jkpsc", "ppsc", "hppsc", "ukpsc",
         "uppsc", "mppsc", "jpsc", "bpsc",
         "sarkarinaukri",
