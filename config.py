@@ -56,12 +56,16 @@ SOURCES = {
     # ── NORTH / WEST INDIA ───────────────────────────────────────────────────
     "rpsc":           "https://rpsc.rajasthan.gov.in/",     # Rajasthan PSC
     "jkpsc":          "https://jkpsc.nic.in/",              # J&K PSC
-    # ppsc.gov.in SSL error; hppsc.hp.gov.in SSL error; ukpsc.gov.in DNS fail
+    "ppsc":           "https://ppsc.gov.in/",               # Punjab PSC — 455 links
+    # hppsc.hp.gov.in — SSL legacy renegotiation error, unscrapeable on Python 3.11
+    # psc.uk.gov.in (Uttarakhand) — SSL legacy renegotiation error, unscrapeable
     # ── HINDI BELT ───────────────────────────────────────────────────────────
     "uppsc":          "https://uppsc.up.nic.in/",           # Uttar Pradesh PSC
     "mppsc":          "https://mppsc.mp.gov.in/",           # Madhya Pradesh PSC
     "jpsc":           "https://jpsc.gov.in/",               # Jharkhand PSC
-    # bpsc.bih.nic.in DNS fail — Bihar coverage via haryanajobs.in
+    "bpsc":           "https://bpsc.bihar.gov.in/whats-new/", # Bihar PSC (old bpsc.bih.nic.in dead)
+    # ── CENTRAL BANKING ──────────────────────────────────────────────────────
+    "ibps":           "https://www.ibps.in/",               # IBPS banking recruitment
     # ── AGGREGATORS ──────────────────────────────────────────────────────────
     "sarkariresult_hr": "https://www.sarkariresult.com/haryana/",
     "sarkarinaukri":    "https://www.sarkarinaukri.com/sarkari-naukri-haryana/",

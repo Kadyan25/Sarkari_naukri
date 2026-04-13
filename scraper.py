@@ -39,7 +39,8 @@ def _get_client() -> httpx.AsyncClient:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0),
             follow_redirects=True,
-            http2=True,                  # use HTTP/2 where supported (faster multiplexing)
+            http2=True,
+            verify=False,                # Indian NIC/eMudhra certs not in default bundle
             limits=httpx.Limits(
                 max_connections=20,
                 max_keepalive_connections=10,
@@ -564,6 +565,26 @@ async def scrape_jkpsc() -> List[Dict[str, Any]]:
     return result
 
 
+async def scrape_ppsc() -> List[Dict[str, Any]]:
+    """
+    Punjab Public Service Commission — 455+ links per scrape.
+    Largest state PSC site we've found; posts all exam/result/admit-card notices.
+    Note: ppsc.gov.in had intermittent SSL errors previously — retry logic in
+    fetch_page handles this. hppsc.hp.gov.in and psc.uk.gov.in are unscrapeable
+    due to Python 3.11 legacy TLS renegotiation incompatibility.
+    """
+    html = await fetch_page(SOURCES["ppsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "ppsc", "psc", "punjab",
+                       "https://ppsc.gov.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_ppsc: %d jobs", len(result))
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Hindi belt PSC scrapers
 # ---------------------------------------------------------------------------
@@ -616,6 +637,42 @@ async def scrape_jpsc() -> List[Dict[str, Any]]:
     return result
 
 
+async def scrape_bpsc() -> List[Dict[str, Any]]:
+    """
+    Bihar Public Service Commission.
+    Old URL bpsc.bih.nic.in is dead — migrated to bpsc.bihar.gov.in.
+    Scrapes /whats-new/ which has the latest 7-10 notices as plain HTML.
+    """
+    html = await fetch_page(SOURCES["bpsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "bpsc", "psc", "bihar",
+                       "https://bpsc.bihar.gov.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_bpsc: %d jobs", len(result))
+    return result
+
+
+async def scrape_ibps() -> List[Dict[str, Any]]:
+    """
+    IBPS — banking recruitment (IBPS PO, Clerk, RRB, SO).
+    Old ibps.in had SSL errors; WordPress-based site now accessible.
+    Lists active bank recruitment drives including CBI, Indian Bank, co-op banks.
+    """
+    html = await fetch_page(SOURCES["ibps"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "ibps", "banking", "all_india",
+                       "https://www.ibps.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_ibps: %d jobs", len(result))
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Master scrape — all sources run in parallel, all DB writes run in parallel
 # ---------------------------------------------------------------------------
@@ -639,13 +696,16 @@ async def scrape_all_sources() -> int:
         scrape_haryanajobs(),
         # Central
         scrape_rrb(),
+        scrape_ibps(),
         # North / West India
         scrape_rpsc(),
         scrape_jkpsc(),
+        scrape_ppsc(),
         # Hindi belt
         scrape_uppsc(),
         scrape_mppsc(),
         scrape_jpsc(),
+        scrape_bpsc(),
         # Cross-verification
         scrape_sarkarinaukri(),
         return_exceptions=True,
@@ -654,9 +714,9 @@ async def scrape_all_sources() -> int:
     all_jobs: List[Dict[str, Any]] = []
     scraper_names = [
         "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs",
-        "rrb",
-        "rpsc", "jkpsc",
-        "uppsc", "mppsc", "jpsc",
+        "rrb", "ibps",
+        "rpsc", "jkpsc", "ppsc",
+        "uppsc", "mppsc", "jpsc", "bpsc",
         "sarkarinaukri",
     ]
     for name, result in zip(scraper_names, results):
