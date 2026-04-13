@@ -45,23 +45,26 @@ NCS_API_KEY = os.getenv("NCS_API_KEY", "")
 NCS_API_BASE = "https://www.ncs.gov.in/api"
 
 SOURCES = {
-    # HARYANA OFFICIAL SITES
-    "hssc":               "https://hssc.gov.in/",
-    "hpsc":               "https://hpsc.gov.in/",
-    # Note: haryanapolicerecruitment.gov.in is dead — police vacancies go via HSSC
-    # haryanapolice.gov.in has no recruitment listing; kept as fallback notice page
-    "haryana_police":     "https://haryanapolice.gov.in/Public_Notice.aspx",
-    # Note: hreyajna.gov.in dead — replaced with haryanajobs.in aggregator
-    "haryanajobs":        "https://www.haryanajobs.in/",
-    # AGGREGATORS
-    "sarkariresult_hr":   "https://www.sarkariresult.com/haryana/",
-    # sarkarinaukri.com — cross-verification source
-    "sarkarinaukri":      "https://www.sarkarinaukri.com/sarkari-naukri-haryana/",
-    # ALL-INDIA — add after Haryana working
-    "ssc":                "https://ssc.gov.in/",
-    "upsc":               "https://upsc.gov.in/",
-    "ibps":               "https://www.ibps.in/",
-    "railway":            "https://indianrailways.gov.in/",
+    # ── HARYANA ──────────────────────────────────────────────────────────────
+    "hssc":           "https://hssc.gov.in/",
+    "hpsc":           "https://hpsc.gov.in/",
+    "haryana_police": "https://haryanapolice.gov.in/Public_Notice.aspx",
+    "haryanajobs":    "https://www.haryanajobs.in/",
+    # ── CENTRAL GOVT ─────────────────────────────────────────────────────────
+    "rrb":            "https://www.rrbcdg.gov.in/",         # Railway — 150+ active notices
+    # ssc.gov.in JS-rendered (0 links); ibps.in SSL error — both covered via haryanajobs.in
+    # ── NORTH / WEST INDIA ───────────────────────────────────────────────────
+    "rpsc":           "https://rpsc.rajasthan.gov.in/",     # Rajasthan PSC
+    "jkpsc":          "https://jkpsc.nic.in/",              # J&K PSC
+    # ppsc.gov.in SSL error; hppsc.hp.gov.in SSL error; ukpsc.gov.in DNS fail
+    # ── HINDI BELT ───────────────────────────────────────────────────────────
+    "uppsc":          "https://uppsc.up.nic.in/",           # Uttar Pradesh PSC
+    "mppsc":          "https://mppsc.mp.gov.in/",           # Madhya Pradesh PSC
+    "jpsc":           "https://jpsc.gov.in/",               # Jharkhand PSC
+    # bpsc.bih.nic.in DNS fail — Bihar coverage via haryanajobs.in
+    # ── AGGREGATORS ──────────────────────────────────────────────────────────
+    "sarkariresult_hr": "https://www.sarkariresult.com/haryana/",
+    "sarkarinaukri":    "https://www.sarkarinaukri.com/sarkari-naukri-haryana/",
 }
 
 

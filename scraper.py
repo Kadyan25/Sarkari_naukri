@@ -463,6 +463,160 @@ async def cross_verify(source_jobs: List[Dict[str, Any]],
 
 
 # ---------------------------------------------------------------------------
+# Central govt scrapers
+# ---------------------------------------------------------------------------
+
+def _build_job(text: str, href: str, source: str, category: str, state: str,
+               base_url: str = "") -> Dict[str, Any]:
+    """Shared job dict builder to avoid repeating the same fields."""
+    if href and not href.startswith("http") and base_url:
+        href = base_url.rstrip("/") + "/" + href.lstrip("/")
+    return {
+        "title":         text,
+        "slug":          slugify(text),
+        "official_url":  href,
+        "source":        source,
+        "category":      category,
+        "qualification": detect_qualification(text),
+        "state":         state,
+        "status":        "active",
+    }
+
+
+def _extract_links(soup, keywords: list, min_len: int = 25,
+                   require_year: bool = False) -> List[tuple]:
+    """
+    Extract (text, href) pairs from all <a> tags matching keyword + length filters.
+    Strips Angular template strings and normalises whitespace.
+    """
+    out = []
+    for a in soup.find_all("a", href=True):
+        raw = a.get_text(separator=" ", strip=True)
+        text = re.sub(r"\s+", " ", raw).strip()
+        if len(text) < min_len:
+            continue
+        if "{{" in text:          # Angular un-rendered template — skip
+            continue
+        tl = text.lower()
+        if not any(kw in tl for kw in keywords):
+            continue
+        if require_year and not any(yr in text for yr in ("2024", "2025", "2026")):
+            continue
+        out.append((text, a["href"]))
+    return out
+
+
+_JOB_KW = ["recruit", "vacanc", "result", "admit", "notification",
+            "bharti", "advt", "apply", "selection", "interview"]
+
+
+async def scrape_rrb() -> List[Dict[str, Any]]:
+    """
+    RRB Chandigarh — representative Railway Recruitment Board.
+    All RRBs publish the same centralised employment notices (CEN).
+    150+ job/result/admit-card links per scrape.
+    """
+    html = await fetch_page(SOURCES["rrb"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = []
+    for text, href in _extract_links(soup, _JOB_KW, min_len=30):
+        # Skip pure "click here to apply" buttons — no title info
+        if text.lower().startswith("click here") or text.lower().startswith("आवेदन"):
+            continue
+        jobs.append(_build_job(text, href, "rrb", "railway", "all_india",
+                               "https://www.rrbcdg.gov.in"))
+    result = _dedup(jobs)
+    logger.info("scrape_rrb: %d jobs", len(result))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# North / West India PSC scrapers
+# ---------------------------------------------------------------------------
+
+async def scrape_rpsc() -> List[Dict[str, Any]]:
+    """Rajasthan Public Service Commission — 88+ links per scrape."""
+    html = await fetch_page(SOURCES["rpsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "rpsc", "psc", "rajasthan",
+                       "https://rpsc.rajasthan.gov.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_rpsc: %d jobs", len(result))
+    return result
+
+
+async def scrape_jkpsc() -> List[Dict[str, Any]]:
+    """Jammu & Kashmir Public Service Commission — 29+ links per scrape."""
+    html = await fetch_page(SOURCES["jkpsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "jkpsc", "psc", "jk",
+                       "https://jkpsc.nic.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_jkpsc: %d jobs", len(result))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Hindi belt PSC scrapers
+# ---------------------------------------------------------------------------
+
+async def scrape_uppsc() -> List[Dict[str, Any]]:
+    """
+    Uttar Pradesh Public Service Commission.
+    Site uses Angular — un-rendered {{...}} template strings are filtered out.
+    """
+    html = await fetch_page(SOURCES["uppsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "uppsc", "psc", "uttar_pradesh",
+                       "https://uppsc.up.nic.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_uppsc: %d jobs", len(result))
+    return result
+
+
+async def scrape_mppsc() -> List[Dict[str, Any]]:
+    """Madhya Pradesh Public Service Commission — 27+ links per scrape."""
+    html = await fetch_page(SOURCES["mppsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "mppsc", "psc", "madhya_pradesh",
+                       "https://mppsc.mp.gov.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_mppsc: %d jobs", len(result))
+    return result
+
+
+async def scrape_jpsc() -> List[Dict[str, Any]]:
+    """
+    Jharkhand Public Service Commission — 45+ links per scrape.
+    Links often have no title text (PDF direct links); filtered by min_len.
+    """
+    html = await fetch_page(SOURCES["jpsc"])
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+    jobs = [_build_job(t, h, "jpsc", "psc", "jharkhand",
+                       "https://jpsc.gov.in")
+            for t, h in _extract_links(soup, _JOB_KW)]
+    result = _dedup(jobs)
+    logger.info("scrape_jpsc: %d jobs", len(result))
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Master scrape — all sources run in parallel, all DB writes run in parallel
 # ---------------------------------------------------------------------------
 
@@ -477,19 +631,33 @@ async def scrape_all_sources() -> int:
 
     # ── 1. Fetch all sources at the same time ────────────────────────────────
     results = await asyncio.gather(
+        # Haryana
         scrape_sarkariresult_haryana(),
         scrape_hssc(),
         scrape_hpsc(),
         scrape_haryana_police(),
         scrape_haryanajobs(),
+        # Central
+        scrape_rrb(),
+        # North / West India
+        scrape_rpsc(),
+        scrape_jkpsc(),
+        # Hindi belt
+        scrape_uppsc(),
+        scrape_mppsc(),
+        scrape_jpsc(),
+        # Cross-verification
         scrape_sarkarinaukri(),
-        return_exceptions=True,   # one failing scraper won't kill the rest
+        return_exceptions=True,
     )
 
-    # Flatten + filter out exceptions
     all_jobs: List[Dict[str, Any]] = []
     scraper_names = [
-        "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs", "sarkarinaukri",
+        "sarkariresult", "hssc", "hpsc", "haryana_police", "haryanajobs",
+        "rrb",
+        "rpsc", "jkpsc",
+        "uppsc", "mppsc", "jpsc",
+        "sarkarinaukri",
     ]
     for name, result in zip(scraper_names, results):
         if isinstance(result, Exception):
