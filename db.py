@@ -74,11 +74,79 @@ async def init_db():
             )
         """)
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS scraper_runs (
+                id         SERIAL PRIMARY KEY,
+                source     TEXT NOT NULL,
+                job_count  INTEGER NOT NULL DEFAULT 0,
+                status     TEXT NOT NULL DEFAULT 'ok',
+                ran_at     TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_scraper_runs_source ON scraper_runs(source)"
+        )
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_scraper_runs_ran_at ON scraper_runs(ran_at)"
+        )
+
 
 async def close_db():
     global _pool
     if _pool:
         await _pool.close()
+
+
+# ── Scraper monitor ──────────────────────────────────────────────────────────
+
+async def db_log_scraper_run(source: str, job_count: int, status: str = "ok") -> None:
+    async with _pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO scraper_runs (source, job_count, status) VALUES ($1, $2, $3)",
+            source, job_count, status,
+        )
+
+
+async def db_get_scraper_health(last_n: int = 3) -> List[Dict[str, Any]]:
+    """
+    Return per-source health: last N runs, consecutive zero count, and status.
+    A source is 'blocked' if it returned 0 jobs in every one of its last N runs.
+    """
+    async with _pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT DISTINCT source FROM scraper_runs
+        """)
+        sources = [r["source"] for r in rows]
+
+        health = []
+        for source in sources:
+            runs = await conn.fetch("""
+                SELECT job_count, status, ran_at
+                FROM scraper_runs
+                WHERE source = $1
+                ORDER BY ran_at DESC
+                LIMIT $2
+            """, source, last_n)
+
+            counts = [r["job_count"] for r in runs]
+            consecutive_zeros = sum(1 for c in counts if c == 0)
+            last_count = counts[0] if counts else None
+            last_ran = runs[0]["ran_at"] if runs else None
+
+            health.append({
+                "source":            source,
+                "last_job_count":    last_count,
+                "consecutive_zeros": consecutive_zeros,
+                "last_ran":          last_ran.isoformat() if last_ran else None,
+                "status": (
+                    "blocked" if consecutive_zeros == last_n and last_n > 0
+                    else "warn" if consecutive_zeros >= 1
+                    else "ok"
+                ),
+                "recent_counts": counts,
+            })
+
+        return sorted(health, key=lambda x: x["source"])
 
 
 # ── Jobs ─────────────────────────────────────────────────────────────────────

@@ -161,3 +161,18 @@ async def trigger_scrape():
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "haryana-naukri-api"}
+
+
+@app.get("/api/health/scrapers")
+async def scraper_health():
+    """Per-source scraper monitor — shows last 3 run counts and blocked status."""
+    from db import db_get_scraper_health
+    data = await db_get_scraper_health(last_n=3)
+    blocked = [h for h in data if h["status"] == "blocked"]
+    warn    = [h for h in data if h["status"] == "warn"]
+    return {
+        "overall": "blocked" if blocked else "warn" if warn else "ok",
+        "blocked_count": len(blocked),
+        "warn_count": len(warn),
+        "sources": data,
+    }

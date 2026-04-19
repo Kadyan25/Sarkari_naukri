@@ -42,6 +42,7 @@ PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY", "")
 DB_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/haryana_naukri")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 NCS_API_KEY = os.getenv("NCS_API_KEY", "")
+ADMIN_TELEGRAM_ID = os.getenv("ADMIN_TELEGRAM_ID", "")  # Your personal Telegram user ID
 NCS_API_BASE = "https://www.ncs.gov.in/api"
 
 SOURCES = {

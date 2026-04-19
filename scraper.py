@@ -854,6 +854,31 @@ async def scrape_htet() -> List[Dict[str, Any]]:
 # Master scrape — all sources run in parallel, all DB writes run in parallel
 # ---------------------------------------------------------------------------
 
+async def _alert_admin_blocked(blocked: list) -> None:
+    """Send a Telegram message to the admin when scrapers are consistently returning 0."""
+    from config import ADMIN_TELEGRAM_ID, TELEGRAM_BOT_TOKEN
+    if not ADMIN_TELEGRAM_ID or not TELEGRAM_BOT_TOKEN:
+        return
+    try:
+        import httpx
+        lines = "\n".join(f"  • {h['source']} — 0 jobs × 3 runs" for h in blocked)
+        msg = (
+            f"⚠️ *Scraper Alert*\n\n"
+            f"The following sources returned 0 jobs for 3 consecutive runs:\n"
+            f"{lines}\n\n"
+            f"Possible causes: IP blocked, site down, or HTML structure changed.\n"
+            f"Check `/api/health/scrapers` for details."
+        )
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                json={"chat_id": ADMIN_TELEGRAM_ID, "text": msg, "parse_mode": "Markdown"},
+            )
+        logger.warning("Admin alerted for blocked scrapers: %s", [h["source"] for h in blocked])
+    except Exception as exc:
+        logger.error("Failed to send admin alert: %s", exc)
+
+
 async def scrape_all_sources() -> int:
     """
     Run ALL scrapers concurrently, upsert all results to DB concurrently.
@@ -902,11 +927,32 @@ async def scrape_all_sources() -> int:
         "uppsc", "mppsc", "jpsc", "bpsc",
         "sarkarinaukri",
     ]
+
+    from db import db_log_scraper_run, db_get_scraper_health
+
+    per_source: Dict[str, int] = {}
     for name, result in zip(scraper_names, results):
         if isinstance(result, Exception):
             logger.error("Scraper %s raised: %s", name, result, exc_info=result)
+            per_source[name] = 0
         elif isinstance(result, list):
+            per_source[name] = len(result)
             all_jobs.extend(result)
+        else:
+            per_source[name] = 0
+
+    # Log each source's count to DB
+    await asyncio.gather(*[
+        db_log_scraper_run(src, count, "ok" if count > 0 else "zero")
+        for src, count in per_source.items()
+    ])
+    logger.info("Scraper counts: %s", per_source)
+
+    # Alert admin for sources returning 0 three runs in a row
+    health = await db_get_scraper_health(last_n=3)
+    blocked = [h for h in health if h["status"] == "blocked"]
+    if blocked:
+        await _alert_admin_blocked(blocked)
 
     # Global dedup across all sources by slug
     all_jobs = _dedup(all_jobs)
