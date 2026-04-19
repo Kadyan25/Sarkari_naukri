@@ -48,6 +48,26 @@ NCS_API_KEY = os.getenv("NCS_API_KEY", "")
 ADMIN_TELEGRAM_ID = os.getenv("ADMIN_TELEGRAM_ID", "")  # Your personal Telegram user ID
 NCS_API_BASE = "https://www.ncs.gov.in/api"
 
+AGGREGATOR_SOURCES = {"haryanajobs", "sarkarinaukri", "sarkariresult"}
+
+# Maps detected category → official department homepage.
+# Used by aggregator scrapers so users are never linked to third-party aggregator sites.
+CATEGORY_OFFICIAL_URLS: Dict[str, str] = {
+    "hssc":    "https://hssc.gov.in/",
+    "hpsc":    "https://hpsc.gov.in/",
+    "police":  "https://haryanapolice.gov.in/",
+    "patwari": "https://hssc.gov.in/",          # Patwari recruitment is via HSSC in Haryana
+    "teacher": "https://bseh.org.in/home",       # HTET / BSEH
+    "banking": "https://www.ibps.in/",
+    "railway": "https://indianrailways.gov.in/",
+    "ssc":     "https://ssc.gov.in/",
+    "upsc":    "https://upsc.gov.in/",
+    "net_jrf": "https://ugcnet.nta.ac.in/",
+    "defence": "https://joinindianarmy.nic.in/",
+    "psc":     "https://upsc.gov.in/",           # generic PSC fallback
+    "other":   "https://india.gov.in/",
+}
+
 SOURCES = {
     # ── HARYANA ──────────────────────────────────────────────────────────────
     "hssc":           "https://hssc.gov.in/",

@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import (
-    close_db, db_get_job_by_slug, db_get_or_create_user,
+    close_db, db_fix_aggregator_urls, db_get_job_by_slug, db_get_or_create_user,
     db_get_recommended_jobs, db_list_jobs, db_subscribe, db_update_user,
     init_db,
 )
@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     await init_db()
     logger.info("DB initialised")
+    fixed = await db_fix_aggregator_urls()
+    if fixed:
+        logger.info("Fixed %d jobs with aggregator official_url → real dept URL", fixed)
     await init_bot()
     start_scheduler()
     yield
@@ -156,6 +159,13 @@ async def trigger_scrape():
     from scraper import scrape_all_sources
     asyncio.create_task(scrape_all_sources())
     return {"ok": True, "message": "Scrape started in background"}
+
+
+@app.post("/api/admin/fix-aggregator-urls")
+async def fix_aggregator_urls():
+    """One-time backfill: replace stored aggregator URLs with real dept homepages."""
+    fixed = await db_fix_aggregator_urls()
+    return {"fixed": fixed}
 
 
 @app.get("/api/health")

@@ -103,6 +103,39 @@ async def close_db():
         await _pool.close()
 
 
+async def db_fix_aggregator_urls() -> int:
+    """
+    One-time backfill: replace aggregator-site URLs with official department homepages.
+    Safe to call multiple times — only touches rows whose official_url still points
+    to haryanajobs.in, sarkarinaukri.com, or sarkariresult.com.
+    Returns number of rows updated.
+    """
+    from config import CATEGORY_OFFICIAL_URLS
+    async with _pool.acquire() as conn:
+        total = 0
+        for category, url in CATEGORY_OFFICIAL_URLS.items():
+            result = await conn.execute(
+                """UPDATE jobs
+                   SET official_url = $1, updated_at = NOW()
+                   WHERE category = $2
+                     AND (official_url LIKE '%haryanajobs.in%'
+                          OR official_url LIKE '%sarkarinaukri.com%'
+                          OR official_url LIKE '%sarkariresult.com%')""",
+                url, category,
+            )
+            total += int(result.split()[-1])
+        # catch-all for 'other' and unmapped categories
+        result = await conn.execute(
+            """UPDATE jobs
+               SET official_url = 'https://india.gov.in/', updated_at = NOW()
+               WHERE (official_url LIKE '%haryanajobs.in%'
+                      OR official_url LIKE '%sarkarinaukri.com%'
+                      OR official_url LIKE '%sarkariresult.com%')""",
+        )
+        total += int(result.split()[-1])
+        return total
+
+
 # ── Scraper monitor ──────────────────────────────────────────────────────────
 
 async def db_log_scraper_run(source: str, job_count: int, status: str = "ok") -> None:
@@ -172,6 +205,14 @@ async def db_upsert_job(job: Dict[str, Any]) -> int:
                 qualification = EXCLUDED.qualification,
                 last_date     = EXCLUDED.last_date,
                 status        = EXCLUDED.status,
+                official_url  = CASE
+                    WHEN jobs.official_url IS NULL OR jobs.official_url = ''
+                         OR jobs.official_url LIKE '%haryanajobs.in%'
+                         OR jobs.official_url LIKE '%sarkarinaukri.com%'
+                         OR jobs.official_url LIKE '%sarkariresult.com%'
+                    THEN EXCLUDED.official_url
+                    ELSE jobs.official_url
+                END,
                 updated_at    = NOW()
             RETURNING id
         """,

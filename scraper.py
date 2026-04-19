@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 
-from config import _USER_AGENTS, SOURCES, random_headers
+from config import _USER_AGENTS, SOURCES, CATEGORY_OFFICIAL_URLS, random_headers
 
 logger = logging.getLogger(__name__)
 
@@ -256,13 +256,14 @@ async def scrape_sarkariresult_haryana() -> List[Dict[str, Any]]:
         if not title or len(title) < 5:
             continue
         link_tag = cells[0].find("a")
+        category = detect_category(title)
         jobs.append({
             "title":         title,
             "slug":          slugify(title),
             "last_date":     parse_last_date(cells[-1].get_text(strip=True)),
-            "official_url":  link_tag["href"] if link_tag and link_tag.get("href") else "",
+            "official_url":  CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
             "source":        "sarkariresult",
-            "category":      detect_category(title),
+            "category":      category,
             "qualification": detect_qualification(title),
             "state":         "haryana",
             "status":        "active",
@@ -413,12 +414,13 @@ async def scrape_haryanajobs() -> List[Dict[str, Any]]:
                    ["recruitment", "vacancy", "bharti", "result", "admit",
                     "answer key", "notification", "recruitment"]):
             continue
+        category = detect_category(text)
         jobs.append({
             "title":         text,
             "slug":          slugify(text),
-            "official_url":  href,
+            "official_url":  CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
             "source":        "haryanajobs",
-            "category":      detect_category(text),
+            "category":      category,
             "qualification": detect_qualification(text),
             "state":         "haryana",
             "status":        "active",
@@ -473,12 +475,13 @@ async def scrape_sarkarinaukri() -> List[Dict[str, Any]]:
         # Determine if this job is Haryana-specific
         is_haryana = any(place in (text + href).lower() for place in _HARYANA_PLACES)
 
+        category = detect_category(text)
         jobs.append({
             "title":         text,
             "slug":          slugify(text),
-            "official_url":  href,
+            "official_url":  CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
             "source":        "sarkarinaukri",
-            "category":      detect_category(text),
+            "category":      category,
             "qualification": detect_qualification(text),
             "state":         "haryana" if is_haryana else "all_india",
             "status":        "active",
