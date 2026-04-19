@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Allow images from govt sites
   images: {
-    domains: ["hssc.gov.in", "hpsc.gov.in", "haryanapolicerecruitment.gov.in"],
+    remotePatterns: [
+      { protocol: "https", hostname: "hssc.gov.in" },
+      { protocol: "https", hostname: "hpsc.gov.in" },
+      { protocol: "https", hostname: "haryanapolicerecruitment.gov.in" },
+    ],
   },
 };
 

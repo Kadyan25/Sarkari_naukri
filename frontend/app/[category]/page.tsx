@@ -10,12 +10,12 @@ const VALID_CATEGORIES = [
 ];
 
 interface PageProps {
-  params: { category: string };
-  searchParams: { page?: string };
+  params:       Promise<{ category: string }>;
+  searchParams: Promise<{ page?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const cat = params.category;
+  const { category: cat } = await params;
   if (!VALID_CATEGORIES.includes(cat)) return {};
   const label = CATEGORY_LABELS[cat] ?? cat.toUpperCase();
   const hindi = CATEGORY_HINDI[cat] ?? label;
@@ -27,8 +27,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CategoryPage({ params, searchParams }: PageProps) {
-  const cat  = params.category;
-  const page = Number(searchParams.page || 1);
+  const { category: cat } = await params;
+  const sp   = await searchParams;
+  const page = Number(sp.page || 1);
 
   if (!VALID_CATEGORIES.includes(cat)) notFound();
 
@@ -46,25 +47,25 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   return (
     <div className="space-y-4">
       {/* Breadcrumb */}
-      <nav className="text-xs text-gray-500">
+      <nav className="text-xs text-gray-500 dark:text-gray-400">
         <Link href="/" className="hover:text-brand">Home</Link>
         <span className="mx-1">/</span>
-        <span className="hindi text-gray-700">{hindi} भर्ती</span>
+        <span className="text-gray-700 dark:text-gray-300">{hindi} भर्ती</span>
       </nav>
 
       {/* Header */}
-      <div className="card bg-brand-light border-brand/20">
+      <div className="card bg-brand-light border-brand/20 dark:bg-gray-800">
         <h1 className="font-bold text-base sm:text-xl text-brand">
           {label} Recruitment 2025
         </h1>
-        <p className="hindi text-sm text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           {hindi} की नई भर्तियां — अंतिम तिथि, पद संख्या, योग्यता सहित
         </p>
       </div>
 
       {/* Jobs */}
       {jobs.length === 0 ? (
-        <div className="card text-center py-10 hindi text-gray-400">
+        <div className="card text-center py-10 text-gray-400">
           अभी कोई भर्ती उपलब्ध नहीं है।
         </div>
       ) : (
@@ -87,11 +88,11 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
       {/* SEO text */}
       <section className="card mt-4">
-        <h2 className="hindi font-semibold text-gray-800 mb-2">
+        <h2 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
           {hindi} भर्ती 2025 — पूरी जानकारी
         </h2>
-        <p className="hindi text-sm text-gray-600 leading-relaxed">
-          {label} (हरियाणा) की सभी ताजा भर्तियां यहाँ उपलब्ध हैं।
+        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+          {label} की सभी ताजा भर्तियां यहाँ उपलब्ध हैं।
           हर भर्ती के लिए अधिसूचना PDF, ऑनलाइन आवेदन लिंक,
           अंतिम तिथि और पात्रता की जानकारी दी जाती है।
           Telegram चैनल से जुड़ें और हर नई भर्ती का अलर्ट पाएं।

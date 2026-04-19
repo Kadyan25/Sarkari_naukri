@@ -15,7 +15,7 @@ export async function generateStaticParams() {
 export const dynamicParams = true;
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 // ── JobPosting JSON-LD schema — gets into Google Jobs tab ─────────────────
@@ -60,7 +60,8 @@ function generateJobSchema(job: Job) {
 // ── Metadata ───────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   try {
-    const job = await getJob(params.slug);
+    const { slug } = await params;
+    const job = await getJob(slug);
     return {
       title: `${job.title} 2025`,
       description: [
@@ -83,9 +84,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export default async function JobDetailPage({ params }: PageProps) {
+  const { slug } = await params;
   let job: Job;
   try {
-    job = await getJob(params.slug);
+    job = await getJob(slug);
   } catch {
     notFound();
   }

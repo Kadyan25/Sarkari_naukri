@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Script from "next/script";
 import { Noto_Sans, Noto_Sans_Devanagari } from "next/font/google";
+import { AppProvider } from "@/contexts/AppContext";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID || "";
 
-// ── next/font — zero render-blocking, auto-optimised, self-hosted ──────────
 const notoSans = Noto_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -25,24 +26,24 @@ const notoDevanagari = Noto_Sans_Devanagari({
 
 export const metadata: Metadata = {
   title: {
-    default: "Haryana Sarkari Naukri 2025 | हरियाणा सरकारी नौकरी",
-    template: "%s | Haryana Sarkari Naukri",
+    default: "Sarkari Naukri 2025 | सरकारी नौकरी",
+    template: "%s | Sarkari Naukri",
   },
   description:
-    "हरियाणा की सभी सरकारी नौकरियां एक जगह। HSSC, HPSC, Police, Banking, Railway भर्ती 2025. Telegram अलर्ट पाएं।",
+    "सभी सरकारी नौकरियां एक जगह। HSSC, HPSC, Police, Banking, Railway भर्ती 2025. Telegram अलर्ट पाएं।",
   keywords: [
-    "haryana sarkari naukri",
+    "sarkari naukri 2025",
+    "government jobs india",
     "hssc bharti 2025",
     "haryana police recruitment",
     "hssc admit card",
     "hssc result 2025",
     "hpsc jobs",
-    "haryana patwari bharti",
-    "सरकारी नौकरी हरियाणा",
+    "सरकारी नौकरी 2025",
   ],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://yourdomain.in"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://sarkarinaukri.in"),
   openGraph: {
-    siteName: "Haryana Sarkari Naukri",
+    siteName: "Sarkari Naukri",
     locale: "hi_IN",
     type: "website",
   },
@@ -51,12 +52,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="hi" className={`${notoSans.variable} ${notoDevanagari.variable}`}>
+    <html lang="hi" className={`${notoSans.variable} ${notoDevanagari.variable}`} suppressHydrationWarning>
       <head>
-        {/* DNS prefetch for API */}
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} />
+        {/* Prevent dark mode flash — sets class before paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('sn_theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})()`,
+          }}
+        />
       </head>
-      {/* Google AdSense — loads after page is interactive (afterInteractive) */}
       {ADSENSE_ID && (
         <Script
           src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_ID}`}
@@ -64,42 +69,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           crossOrigin="anonymous"
         />
       )}
-      <body className="bg-gray-50 text-gray-900 min-h-screen">
-        {/* Header */}
-        <header className="bg-brand shadow-md sticky top-0 z-50">
-          <div className="max-w-5xl mx-auto px-3 py-3 flex items-center justify-between">
-            <Link href="/" className="flex flex-col leading-tight min-h-0">
-              <span className="text-white font-bold text-base sm:text-lg">
-                Haryana Naukri
-              </span>
-              <span className="hindi text-blue-200 text-xs">हरियाणा सरकारी नौकरी</span>
-            </Link>
-            <a
-              href="https://t.me/your_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-white text-brand px-3 py-1.5 rounded-lg
-                         text-xs font-semibold hover:bg-blue-50 transition-colors"
-            >
-              🔔 <span className="hindi">अलर्ट पाएं</span>
-            </a>
-          </div>
-        </header>
-
-        {/* Main */}
-        <main className="max-w-5xl mx-auto px-3 py-4">
-          {children}
-        </main>
-
-        {/* Footer */}
-        <footer className="mt-12 bg-white border-t border-gray-200">
-          <div className="max-w-5xl mx-auto px-3 py-6 text-center text-xs text-gray-500">
-            <p className="hindi mb-1">
-              हरियाणा सरकारी नौकरी — HSSC | HPSC | Police | Banking | Railway
-            </p>
-            <p>© 2025 HaryanaNaukri.in — All govt job data sourced from official websites.</p>
-          </div>
-        </footer>
+      <body className="bg-gray-50 text-gray-900 min-h-screen dark:bg-gray-950 dark:text-gray-100 transition-colors duration-200">
+        <AppProvider>
+          <Header />
+          <main className="max-w-5xl mx-auto px-3 py-4">
+            {children}
+          </main>
+          <Footer />
+        </AppProvider>
       </body>
     </html>
   );
