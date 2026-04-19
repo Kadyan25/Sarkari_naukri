@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getJobs } from "@/lib/api";
 import HomeContent from "@/components/HomeContent";
 
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "Sarkari Naukri 2025 | सरकारी नौकरी",
   description:

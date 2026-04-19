@@ -12,7 +12,7 @@
     font-family: var(--font-noto-devanagari), var(--font-noto-sans), sans-serif;
   }
 
-  button, a {
+  button {
     min-height: 44px;
   }
 

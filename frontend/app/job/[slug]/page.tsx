@@ -2,87 +2,148 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getJob, getRecentJobSlugs } from "@/lib/api";
-import { Job } from "@/lib/types";
+import { Job, CATEGORY_LABELS, CATEGORY_HINDI } from "@/lib/types";
 import Countdown from "@/components/Countdown";
 
-// Pre-render the 100 most recent job pages at build time — instant first load
 export async function generateStaticParams() {
   const slugs = await getRecentJobSlugs(100);
   return slugs.map((slug) => ({ slug }));
 }
 
-// Fall through to ISR for any job not pre-rendered
 export const dynamicParams = true;
+export const revalidate = 1800;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-// ── JobPosting JSON-LD schema — gets into Google Jobs tab ─────────────────
 function generateJobSchema(job: Job) {
   return {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
-    "title": job.title,
-    "description": [
+    title: job.title,
+    description: [
       job.title_hindi,
       job.qualification ? `Qualification: ${job.qualification}` : null,
       job.total_posts   ? `Total Posts: ${job.total_posts}` : null,
       job.salary        ? `Salary: ${job.salary}` : null,
-      job.application_fee ? `Application Fee: ${job.application_fee}` : null,
     ].filter(Boolean).join(". "),
-    "datePosted": job.created_at,
-    "validThrough": job.last_date ? `${job.last_date}T23:59:59` : undefined,
-    "employmentType": "FULL_TIME",
-    "hiringOrganization": {
+    datePosted:      job.created_at,
+    validThrough:    job.last_date ? `${job.last_date}T23:59:59` : undefined,
+    employmentType:  "FULL_TIME",
+    hiringOrganization: {
       "@type": "Organization",
-      "name": "Government of Haryana",
-      "sameAs": job.official_url ?? "https://haryana.gov.in",
+      name:   "Government of India",
+      sameAs: job.official_url ?? "https://india.gov.in",
     },
-    "jobLocation": {
-      "@type": "Place",
-      "address": {
-        "@type": "PostalAddress",
-        "addressRegion": "Haryana",
-        "addressCountry": "IN",
-      },
+    jobLocation: {
+      "@type":   "Place",
+      address: { "@type": "PostalAddress", addressCountry: "IN" },
     },
     ...(job.salary && {
-      "baseSalary": {
+      baseSalary: {
         "@type": "MonetaryAmount",
-        "currency": "INR",
-        "value": { "@type": "QuantitativeValue", "description": job.salary },
+        currency: "INR",
+        value: { "@type": "QuantitativeValue", description: job.salary },
       },
     }),
   };
 }
 
-// ── Metadata ───────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   try {
     const { slug } = await params;
     const job = await getJob(slug);
+    const desc = [
+      job.title_hindi,
+      job.total_posts ? `${job.total_posts} Posts` : null,
+      job.last_date
+        ? `Last Date: ${new Date(job.last_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+        : null,
+      job.qualification ? `Qualification: ${job.qualification}` : null,
+    ].filter(Boolean).join(" | ");
     return {
-      title: `${job.title} 2025`,
-      description: [
-        job.title_hindi,
-        job.total_posts ? `${job.total_posts} पद` : null,
-        job.last_date ? `अंतिम तिथि: ${job.last_date}` : null,
-        job.qualification ? `योग्यता: ${job.qualification}` : null,
-      ].filter(Boolean).join(" | "),
+      title: `${job.title} | Sarkari Naukri`,
+      description: desc || `Apply for ${job.title}. Check eligibility, last date, vacancy details.`,
       alternates: { canonical: `/job/${job.slug}` },
-      openGraph: {
-        title: job.title,
-        description: `${job.total_posts ?? ""} posts | Last date: ${job.last_date ?? ""}`,
-        type: "article",
-      },
+      openGraph: { title: job.title, description: desc, type: "article" },
     };
   } catch {
     return {};
   }
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
+// ── Reusable table row ──────────────────────────────────────────────────────
+function InfoRow({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value?: string | number | null;
+  highlight?: boolean;
+}) {
+  if (value === undefined || value === null || value === "") return null;
+  return (
+    <tr className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <td className="py-2.5 pr-4 text-sm text-gray-500 dark:text-gray-400 hindi whitespace-nowrap w-36 align-top">
+        {label}
+      </td>
+      <td
+        className={`py-2.5 text-sm font-semibold hindi ${
+          highlight ? "text-red-600" : "text-gray-800 dark:text-gray-200"
+        }`}
+      >
+        {value}
+      </td>
+    </tr>
+  );
+}
+
+// ── Section wrapper ─────────────────────────────────────────────────────────
+function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="card">
+      <h2 className="font-bold text-gray-800 dark:text-gray-200 mb-3 pb-2 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        <span>{icon}</span>
+        <span className="hindi">{title}</span>
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+// ── Action buttons row ──────────────────────────────────────────────────────
+function ActionButtons({ job }: { job: Job }) {
+  if (!job.official_url && !job.notification_pdf) return null;
+  return (
+    <div className="flex gap-3 flex-wrap">
+      {job.official_url && (
+        <a
+          href={job.official_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 btn-primary text-center min-w-[130px]"
+        >
+          Apply Online →
+        </a>
+      )}
+      {job.notification_pdf && (
+        <a
+          href={job.notification_pdf}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 text-center border-2 border-brand text-brand px-4 py-2 rounded-lg
+                     text-sm font-semibold hover:bg-brand hover:text-white transition-colors min-w-[130px]"
+        >
+          📄 Notification PDF
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
 export default async function JobDetailPage({ params }: PageProps) {
   const { slug } = await params;
   let job: Job;
@@ -92,150 +153,184 @@ export default async function JobDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const schema = generateJobSchema(job);
+  const catLabel   = CATEGORY_LABELS[job.category] ?? job.category.toUpperCase();
+  const catHindi   = CATEGORY_HINDI[job.category]  ?? job.category.toUpperCase();
 
-  const details: { label: string; value: string | number | undefined; hindi?: boolean }[] = [
-    { label: "पद संख्या",    value: job.total_posts?.toLocaleString("hi-IN"), hindi: true },
-    { label: "अंतिम तिथि",   value: job.last_date
-        ? new Date(job.last_date).toLocaleDateString("hi-IN", { day: "numeric", month: "long", year: "numeric" })
-        : undefined, hindi: true },
-    { label: "आवेदन शुरू",   value: job.apply_start
-        ? new Date(job.apply_start).toLocaleDateString("hi-IN", { day: "numeric", month: "long", year: "numeric" })
-        : undefined, hindi: true },
-    { label: "शैक्षिक योग्यता", value: job.qualification, hindi: true },
-    { label: "आयु सीमा",     value:
-        job.age_min && job.age_max ? `${job.age_min}–${job.age_max} वर्ष` :
-        job.age_max ? `अधिकतम ${job.age_max} वर्ष` : undefined, hindi: true },
-    { label: "वेतनमान",      value: job.salary, hindi: true },
-    { label: "आवेदन शुल्क",  value: job.application_fee, hindi: true },
-    { label: "विभाग",        value: job.category?.toUpperCase() },
-    { label: "स्रोत",        value: job.source },
-  ].filter((d) => d.value !== undefined && d.value !== "");
+  const isExpiringSoon = job.last_date
+    ? (new Date(job.last_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24) <= 7
+    : false;
+
+  const fmtDate = (d?: string | null) =>
+    d
+      ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+      : null;
+
+  const ageLabel =
+    job.age_min && job.age_max ? `${job.age_min}–${job.age_max} वर्ष` :
+    job.age_max                ? `अधिकतम ${job.age_max} वर्ष`         :
+    null;
+
+  const howToApply = [
+    job.official_url
+      ? `आधिकारिक वेबसाइट (${job.official_url}) पर जाएं`
+      : "विभाग की आधिकारिक वेबसाइट पर जाएं",
+    '"Apply Online" या "ऑनलाइन आवेदन" लिंक पर क्लिक करें',
+    "मोबाइल नंबर / ईमेल से नया रजिस्ट्रेशन करें",
+    "फॉर्म भरें — फोटो, हस्ताक्षर और दस्तावेज अपलोड करें",
+    "आवेदन शुल्क ऑनलाइन जमा करें (डेबिट कार्ड / नेट बैंकिंग / UPI)",
+    "सबमिट करें और कन्फर्मेशन पेज का प्रिंटआउट रखें",
+  ];
 
   return (
     <>
-      {/* JobPosting JSON-LD */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJobSchema(job)) }}
       />
 
-      <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-4">
         {/* Breadcrumb */}
-        <nav className="text-xs text-gray-500">
+        <nav className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
           <Link href="/" className="hover:text-brand">Home</Link>
-          <span className="mx-1">/</span>
-          <Link href={`/${job.category}`} className="hover:text-brand capitalize">
-            {job.category}
+          {" / "}
+          <Link href={`/?category=${job.category}`} className="hover:text-brand capitalize">
+            {catLabel}
           </Link>
-          <span className="mx-1">/</span>
-          <span className="text-gray-700 truncate">{job.title.slice(0, 40)}</span>
+          {" / "}
+          <span className="text-gray-700 dark:text-gray-300">{job.title.slice(0, 45)}</span>
         </nav>
 
-        {/* Title Card */}
+        {/* Title hero card */}
         <div className="card border-l-4 border-brand">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h1 className="font-bold text-base sm:text-xl text-gray-900 leading-snug">
-                {job.title}
-              </h1>
-              {job.title_hindi && (
-                <p className="hindi text-sm text-gray-500 mt-1">{job.title_hindi}</p>
-              )}
-            </div>
-            {job.last_date && (
-              <div className="flex-shrink-0 text-right">
-                <Countdown lastDate={job.last_date} />
-              </div>
+          {/* Status badges */}
+          <div className="flex flex-wrap gap-2 mb-2">
+            <span className={`badge badge-${job.category}`}>{catLabel}</span>
+            {job.status === "result_out" && (
+              <span className="badge bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                ✓ Result Out
+              </span>
             )}
+            {job.status === "admit_card" && (
+              <span className="badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                Admit Card
+              </span>
+            )}
+            {isExpiringSoon && job.status === "active" && (
+              <span className="badge bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                ⚠ Closing Soon
+              </span>
+            )}
+          </div>
+
+          <h1 className="font-bold text-lg sm:text-xl text-gray-900 dark:text-gray-100 leading-snug">
+            {job.title}
+          </h1>
+          {job.title_hindi && (
+            <p className="hindi text-sm text-gray-500 dark:text-gray-400 mt-1">{job.title_hindi}</p>
+          )}
+
+          {/* Key metrics strip */}
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs">
+            {job.total_posts && (
+              <span className="font-bold text-brand">
+                📋 {job.total_posts.toLocaleString("en-IN")} Posts
+              </span>
+            )}
+            {job.qualification && (
+              <span className="text-gray-600 dark:text-gray-400">🎓 {job.qualification}</span>
+            )}
+            {job.last_date && (
+              <span className={`font-semibold ${isExpiringSoon ? "text-red-600" : "text-gray-600 dark:text-gray-400"}`}>
+                📅 {fmtDate(job.last_date)}
+              </span>
+            )}
+            {job.last_date && <Countdown lastDate={job.last_date} lang="hi" />}
           </div>
         </div>
 
-        {/* Details Grid */}
-        <div className="card">
-          <h2 className="hindi font-semibold text-gray-800 mb-3">भर्ती विवरण</h2>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
-            {details.map((d) => (
-              <div key={d.label} className="flex flex-col">
-                <dt className={`text-xs text-gray-400 ${d.hindi ? "hindi" : ""}`}>
-                  {d.label}
-                </dt>
-                <dd className={`text-sm font-semibold text-gray-800 ${d.hindi ? "hindi" : ""}`}>
-                  {d.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+        {/* Top CTAs */}
+        <ActionButtons job={job} />
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {job.official_url && (
-            <a
-              href={job.official_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary text-center flex-1"
-            >
-              🌐 <span className="hindi">आधिकारिक वेबसाइट</span>
-            </a>
-          )}
+        {/* Important Dates */}
+        {(job.apply_start || job.last_date) && (
+          <Section icon="📅" title="महत्वपूर्ण तिथियाँ">
+            <table className="w-full">
+              <tbody>
+                <InfoRow label="आवेदन शुरू"  value={fmtDate(job.apply_start)} />
+                <InfoRow label="अंतिम तिथि"  value={fmtDate(job.last_date)} highlight={isExpiringSoon} />
+              </tbody>
+            </table>
+          </Section>
+        )}
+
+        {/* Vacancy & Eligibility */}
+        <Section icon="📋" title="भर्ती विवरण">
+          <table className="w-full">
+            <tbody>
+              <InfoRow label="कुल पद"         value={job.total_posts ? `${job.total_posts.toLocaleString("en-IN")} Posts` : null} />
+              <InfoRow label="विभाग"           value={`${catLabel} (${catHindi})`} />
+              <InfoRow label="पद का नाम"       value={job.post_type} />
+              <InfoRow label="शैक्षिक योग्यता" value={job.qualification} />
+              <InfoRow label="आयु सीमा"        value={ageLabel} />
+              <InfoRow label="वेतनमान"          value={job.salary} />
+              <InfoRow label="आवेदन शुल्क"     value={job.application_fee} />
+              <InfoRow label="स्रोत"            value={job.source} />
+            </tbody>
+          </table>
+        </Section>
+
+        {/* How to Apply */}
+        <Section icon="📝" title="आवेदन कैसे करें">
+          <ol className="space-y-2.5">
+            {howToApply.map((step, i) => (
+              <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300">
+                <span className="flex-shrink-0 w-5 h-5 bg-brand text-white text-xs rounded-full flex items-center justify-center font-bold mt-0.5">
+                  {i + 1}
+                </span>
+                <span className="hindi">{step}</span>
+              </li>
+            ))}
+          </ol>
           {job.notification_pdf && (
-            <a
-              href={job.notification_pdf}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 text-center border border-brand text-brand px-4 py-2
-                         rounded-lg text-sm font-semibold hover:bg-brand-light transition-colors"
-            >
-              📄 <span className="hindi">नोटिफिकेशन PDF</span>
-            </a>
+            <p className="hindi text-xs text-gray-500 dark:text-gray-400 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+              पूरी जानकारी के लिए{" "}
+              <a
+                href={job.notification_pdf}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand underline"
+              >
+                आधिकारिक नोटिफिकेशन PDF
+              </a>{" "}
+              डाउनलोड करें।
+            </p>
           )}
-        </div>
+        </Section>
 
         {/* Telegram CTA */}
-        <div className="card bg-blue-50 border-blue-200 text-center">
-          <p className="hindi text-sm text-gray-700 mb-2">
+        <div className="card bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-center">
+          <p className="hindi text-sm text-gray-700 dark:text-gray-300 mb-3">
             इस तरह की और भर्तियों का अलर्ट Telegram पर पाएं — बिल्कुल मुफ्त
           </p>
           <a
             href="https://t.me/your_bot"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary inline-block"
+            className="btn-primary inline-flex items-center gap-2"
           >
             🔔 <span className="hindi">Telegram अलर्ट चालू करें</span>
           </a>
         </div>
 
-        {/* Important Dates */}
-        {(job.apply_start || job.last_date) && (
-          <div className="card">
-            <h2 className="hindi font-semibold text-gray-800 mb-3">महत्वपूर्ण तिथियाँ</h2>
-            <div className="space-y-2">
-              {job.apply_start && (
-                <div className="flex justify-between text-sm">
-                  <span className="hindi text-gray-600">आवेदन शुरू</span>
-                  <span className="font-medium">
-                    {new Date(job.apply_start).toLocaleDateString("en-IN", {
-                      day: "numeric", month: "short", year: "numeric",
-                    })}
-                  </span>
-                </div>
-              )}
-              {job.last_date && (
-                <div className="flex justify-between text-sm border-t pt-2">
-                  <span className="hindi text-gray-600">अंतिम तिथि</span>
-                  <span className="font-bold text-red-600">
-                    {new Date(job.last_date).toLocaleDateString("en-IN", {
-                      day: "numeric", month: "short", year: "numeric",
-                    })}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Bottom CTAs */}
+        <ActionButtons job={job} />
+
+        {/* Back to category */}
+        <div className="text-center pb-2">
+          <Link href={`/?category=${job.category}`} className="text-sm text-brand hover:underline">
+            ← See all {catLabel} jobs
+          </Link>
+        </div>
       </div>
     </>
   );

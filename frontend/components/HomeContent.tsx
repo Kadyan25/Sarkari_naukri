@@ -55,7 +55,7 @@ export default function HomeContent({ jobs, error, category, page }: Props) {
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
           {t("pickDept")}
         </h2>
-        <CategoryTabs active={category} />
+        <CategoryTabs active={category} lang={lang} />
       </section>
 
       {/* Jobs List */}
@@ -80,7 +80,7 @@ export default function HomeContent({ jobs, error, category, page }: Props) {
 
         <div className="space-y-3">
           {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <JobCard key={job.id} job={job} lang={lang} />
           ))}
         </div>
 
