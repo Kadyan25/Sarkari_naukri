@@ -1,59 +1,86 @@
 "use client";
 import Link from "next/link";
 import { useApp } from "@/contexts/AppContext";
-import { useT } from "@/lib/i18n";
 
 export default function Header() {
   const { lang, theme, toggleLang, toggleTheme } = useApp();
-  const t = useT(lang);
 
   return (
-    <header className="bg-brand shadow-md sticky top-0 z-50 dark:bg-gray-900 dark:border-b dark:border-gray-700">
-      <div className="max-w-5xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
-        {/* Logo */}
-        <Link href="/" className="flex flex-col leading-tight min-h-0 min-w-0">
-          <span className="text-white font-bold text-base sm:text-lg truncate">
-            {t("siteNameEn")}
+    <header
+      style={{
+        background: "var(--ink-900)",
+        borderBottom: "2px solid var(--brand-blue)",
+      }}
+      className="sticky top-0 z-50"
+    >
+      <div className="max-w-5xl mx-auto px-3 py-3 flex items-center justify-between gap-2">
+        {/* Masthead */}
+        <Link href="/" className="flex flex-col leading-tight min-w-0">
+          <span
+            style={{ fontFamily: "var(--font-mono)", color: "#ffffff" }}
+            className="font-semibold text-sm sm:text-base tracking-tight"
+          >
+            सरकारी नौकरी · Sarkari Naukri
           </span>
-          <span className="text-blue-200 text-xs truncate dark:text-gray-400">
-            {t("tagline")}
+          <span
+            style={{ fontFamily: "var(--font-mono)", color: "var(--ink-400)", fontSize: "0.65rem" }}
+            className="tracking-widest uppercase"
+          >
+            Govt Job Alerts · India
           </span>
         </Link>
 
         {/* Controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Language toggle */}
           <button
             onClick={toggleLang}
             aria-label="Toggle language"
-            className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white
-                       px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors
-                       dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
+            style={{
+              fontFamily: "var(--font-mono)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              borderRadius: "var(--r-md)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              padding: "4px 10px",
+              border: "1px solid rgba(255,255,255,0.15)",
+            }}
+            className="hover:bg-white/20 transition-colors"
           >
             {lang === "hi" ? "EN" : "हिं"}
           </button>
 
-          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className="flex items-center justify-center bg-white/20 hover:bg-white/30 text-white
-                       w-8 h-8 rounded-lg text-sm transition-colors
-                       dark:bg-gray-700 dark:hover:bg-gray-600"
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              borderRadius: "var(--r-md)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              width: 32,
+              height: 32,
+            }}
+            className="flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
           >
             {theme === "light" ? "🌙" : "☀️"}
           </button>
 
-          {/* Telegram CTA */}
           <a
             href="https://t.me/your_bot"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:flex items-center gap-1.5 bg-white text-brand px-3 py-1.5
-                       rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors
-                       dark:bg-gray-100 dark:text-brand"
+            style={{
+              background: "var(--brand-blue)",
+              color: "#fff",
+              borderRadius: "var(--r-md)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              padding: "6px 12px",
+            }}
+            className="hidden sm:inline-flex items-center gap-1.5 hover:opacity-90 transition-opacity"
           >
-            🔔 {t("alertBtn")}
+            🔔 {lang === "hi" ? "अलर्ट पाएं" : "Get Alerts"}
           </a>
         </div>
       </div>

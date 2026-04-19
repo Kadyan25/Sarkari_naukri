@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Noto_Sans, Noto_Sans_Devanagari } from "next/font/google";
+import { Noto_Sans, Noto_Sans_Devanagari, IBM_Plex_Mono } from "next/font/google";
 import { AppProvider } from "@/contexts/AppContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -22,6 +22,14 @@ const notoDevanagari = Noto_Sans_Devanagari({
   variable: "--font-noto-devanagari",
   display: "swap",
   preload: true,
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-ibm-mono",
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -52,7 +60,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="hi" className={`${notoSans.variable} ${notoDevanagari.variable}`} suppressHydrationWarning>
+    <html lang="hi" className={`${notoSans.variable} ${notoDevanagari.variable} ${ibmPlexMono.variable}`} suppressHydrationWarning>
       <head>
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} />
         {/* Prevent dark mode flash — sets class before paint */}
@@ -69,7 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           crossOrigin="anonymous"
         />
       )}
-      <body className="bg-gray-50 text-gray-900 min-h-screen dark:bg-gray-950 dark:text-gray-100 transition-colors duration-200">
+      <body style={{ backgroundColor: "var(--bg-page)", color: "var(--ink-900)" }} className="min-h-screen transition-colors duration-200">
         <AppProvider>
           <Header />
           <main className="max-w-5xl mx-auto px-3 py-4">

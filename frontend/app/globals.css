@@ -2,6 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design system tokens ─────────────────────────────────────────────────── */
+:root {
+  --ink-900: #1a1a1a;
+  --ink-800: #2d2d2d;
+  --ink-700: #444444;
+  --ink-600: #666666;
+  --ink-400: #999999;
+  --ink-200: #cccccc;
+  --ink-100: #e5e5e5;
+  --ink-50:  #f5f5f5;
+
+  --paper:      #ffffff;
+  --bg-page:    #f4efe4;
+  --bg-surface: #fdfcf8;
+
+  --brand-blue:      #1a56db;
+  --brand-blue-dark: #1e429f;
+
+  --saffron:     #ff9933;
+  --india-green: #138808;
+  --red:         #dc2626;
+  --green-ok:    #16a34a;
+
+  --border:       #e0d9ce;
+  --border-strong:#c8bfb3;
+  --border-soft:  #ede8e1;
+
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --r-sm: 2px;
+  --r-md: 4px;
+  --r-lg: 6px;
+}
+
+/* ── Dark mode token overrides ────────────────────────────────────────────── */
+html.dark {
+  --ink-900: #f0efe9;
+  --ink-800: #d6d4cc;
+  --ink-700: #b8b4aa;
+  --ink-600: #9b9790;
+  --ink-400: #6a6762;
+  --ink-200: #444440;
+  --ink-100: #2e2e2b;
+  --ink-50:  #242420;
+
+  --paper:      #1e1e1b;
+  --bg-page:    #181816;
+  --bg-surface: #222220;
+
+  --border:        #383835;
+  --border-strong: #4a4a46;
+  --border-soft:   #2c2c29;
+
+  --red:      #f87171;
+  --green-ok: #4ade80;
+
+  --brand-blue:      #60a5fa;
+  --brand-blue-dark: #3b82f6;
+}
+
 @layer base {
   html {
     font-family: var(--font-noto-sans), sans-serif;
@@ -12,38 +72,90 @@
     font-family: var(--font-noto-devanagari), var(--font-noto-sans), sans-serif;
   }
 
+  .mono {
+    font-family: var(--font-mono);
+  }
+
   button {
     min-height: 44px;
   }
 
-  /* Dark mode base */
   html.dark body {
-    @apply bg-gray-950 text-gray-100;
+    background-color: var(--bg-page);
+    color: var(--ink-900);
   }
 }
 
 @layer components {
-  .badge {
-    @apply inline-block px-2 py-0.5 rounded text-xs font-semibold;
+  /* Eyebrow: uppercase label with 2px rule below */
+  .eyebrow {
+    @apply text-xs font-semibold tracking-widest uppercase;
+    color: var(--ink-600);
+    border-bottom: 2px solid var(--border-strong);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
   }
 
-  .badge-hssc    { @apply bg-blue-100   text-blue-800   dark:bg-blue-900   dark:text-blue-200; }
-  .badge-hpsc    { @apply bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200; }
-  .badge-police  { @apply bg-gray-100   text-gray-800   dark:bg-gray-700   dark:text-gray-200; }
-  .badge-banking { @apply bg-green-100  text-green-800  dark:bg-green-900  dark:text-green-200; }
-  .badge-railway { @apply bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200; }
-  .badge-ssc     { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200; }
-  .badge-teacher { @apply bg-pink-100   text-pink-800   dark:bg-pink-900   dark:text-pink-200; }
-  .badge-other   { @apply bg-slate-100  text-slate-700  dark:bg-slate-700  dark:text-slate-200; }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: var(--r-sm);
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .badge-hssc    { background: #dbeafe; color: #1e40af; }
+  .badge-hpsc    { background: #ede9fe; color: #5b21b6; }
+  .badge-police  { background: #f1f5f9; color: #334155; }
+  .badge-banking { background: #dcfce7; color: #166534; }
+  .badge-railway { background: #ffedd5; color: #9a3412; }
+  .badge-ssc     { background: #fef9c3; color: #854d0e; }
+  .badge-teacher { background: #fce7f3; color: #9d174d; }
+  .badge-upsc    { background: #f0fdf4; color: #14532d; }
+  .badge-net_jrf { background: #f5f3ff; color: #4c1d95; }
+  .badge-defence { background: #fef2f2; color: #991b1b; }
+  .badge-psc     { background: #ecfeff; color: #164e63; }
+  .badge-other   { background: #f8fafc; color: #475569; }
+
+  html.dark .badge-hssc    { background: #1e3a5f; color: #93c5fd; }
+  html.dark .badge-hpsc    { background: #2e1065; color: #c4b5fd; }
+  html.dark .badge-police  { background: #1e293b; color: #94a3b8; }
+  html.dark .badge-banking { background: #14532d; color: #86efac; }
+  html.dark .badge-railway { background: #431407; color: #fdba74; }
+  html.dark .badge-ssc     { background: #422006; color: #fde047; }
+  html.dark .badge-teacher { background: #500724; color: #f9a8d4; }
+  html.dark .badge-upsc    { background: #052e16; color: #4ade80; }
+  html.dark .badge-net_jrf { background: #2e1065; color: #a78bfa; }
+  html.dark .badge-defence { background: #450a0a; color: #fca5a5; }
+  html.dark .badge-psc     { background: #0c4a6e; color: #7dd3fc; }
+  html.dark .badge-other   { background: #0f172a; color: #94a3b8; }
 
   .btn-primary {
-    @apply bg-brand text-white px-4 py-2 rounded-lg font-semibold
-           hover:bg-brand-dark active:scale-95 transition-all duration-150 text-sm;
+    background: var(--brand-blue);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: var(--r-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-block;
+    transition: background 150ms, transform 100ms;
   }
+  .btn-primary:hover  { background: var(--brand-blue-dark); }
+  .btn-primary:active { transform: scale(0.97); }
 
   .card {
-    @apply bg-white rounded-xl border border-gray-100 shadow-sm p-4
-           dark:bg-gray-800 dark:border-gray-700;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 16px;
+  }
+  html.dark .card {
+    background: #232323;
+    border-color: #333;
   }
 
   .skeleton {

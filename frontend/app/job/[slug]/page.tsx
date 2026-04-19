@@ -85,14 +85,27 @@ function InfoRow({
 }) {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <tr className="border-b border-gray-100 dark:border-gray-700 last:border-0">
-      <td className="py-2.5 pr-4 text-sm text-gray-500 dark:text-gray-400 hindi whitespace-nowrap w-36 align-top">
+    <tr style={{ borderBottom: "1px solid var(--border-soft)" }}>
+      <td
+        className="hindi align-top whitespace-nowrap"
+        style={{
+          padding: "8px 12px 8px 0",
+          fontSize: "0.78rem",
+          color: "var(--ink-600)",
+          width: "9rem",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
         {label}
       </td>
       <td
-        className={`py-2.5 text-sm font-semibold hindi ${
-          highlight ? "text-red-600" : "text-gray-800 dark:text-gray-200"
-        }`}
+        className="hindi"
+        style={{
+          padding: "8px 0",
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          color: highlight ? "var(--red)" : "var(--ink-900)",
+        }}
       >
         {value}
       </td>
@@ -104,9 +117,22 @@ function InfoRow({
 function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
   return (
     <div className="card">
-      <h2 className="font-bold text-gray-800 dark:text-gray-200 mb-3 pb-2 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+      <h2
+        className="hindi flex items-center gap-2"
+        style={{
+          fontWeight: 700,
+          fontSize: "0.85rem",
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          color: "var(--ink-700)",
+          borderBottom: "2px solid var(--border-strong)",
+          paddingBottom: "8px",
+          marginBottom: "12px",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
         <span>{icon}</span>
-        <span className="hindi">{title}</span>
+        <span>{title}</span>
       </h2>
       {children}
     </div>
@@ -123,7 +149,8 @@ function ActionButtons({ job }: { job: Job }) {
           href={job.official_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 btn-primary text-center min-w-[130px]"
+          className="btn-primary flex-1 text-center"
+          style={{ minWidth: "130px" }}
         >
           Apply Online →
         </a>
@@ -133,8 +160,25 @@ function ActionButtons({ job }: { job: Job }) {
           href={job.notification_pdf}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center border-2 border-brand text-brand px-4 py-2 rounded-lg
-                     text-sm font-semibold hover:bg-brand hover:text-white transition-colors min-w-[130px]"
+          className="flex-1 text-center"
+          style={{
+            border: "2px solid var(--brand-blue)",
+            color: "var(--brand-blue)",
+            padding: "8px 16px",
+            borderRadius: "var(--r-md)",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            minWidth: "130px",
+            transition: "background 150ms, color 150ms",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "var(--brand-blue)";
+            (e.currentTarget as HTMLElement).style.color = "#fff";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.color = "var(--brand-blue)";
+          }}
         >
           {job.notification_pdf?.endsWith(".pdf") ? "📄 Notification PDF" : "🔗 View Details"}
         </a>
@@ -199,46 +243,52 @@ export default async function JobDetailPage({ params }: PageProps) {
         </nav>
 
         {/* Title hero card */}
-        <div className="card border-l-4 border-brand">
+        <div className="card" style={{ borderLeft: "4px solid var(--brand-blue)" }}>
           {/* Status badges */}
           <div className="flex flex-wrap gap-2 mb-2">
             <span className={`badge badge-${job.category}`}>{catLabel}</span>
             {job.status === "result_out" && (
-              <span className="badge bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                ✓ Result Out
-              </span>
+              <span className="badge" style={{ background: "#dcfce7", color: "#166534" }}>✓ Result Out</span>
             )}
             {job.status === "admit_card" && (
-              <span className="badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
-                Admit Card
-              </span>
+              <span className="badge" style={{ background: "#fef9c3", color: "#854d0e" }}>Admit Card</span>
             )}
             {isExpiringSoon && job.status === "active" && (
-              <span className="badge bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-                ⚠ Closing Soon
-              </span>
+              <span className="badge" style={{ background: "#fee2e2", color: "#991b1b" }}>⚠ Closing Soon</span>
             )}
           </div>
 
-          <h1 className="font-bold text-lg sm:text-xl text-gray-900 dark:text-gray-100 leading-snug">
+          <h1
+            className="hindi leading-snug"
+            style={{ fontWeight: 700, fontSize: "clamp(1rem, 3vw, 1.25rem)", color: "var(--ink-900)" }}
+          >
             {job.title}
           </h1>
           {job.title_hindi && (
-            <p className="hindi text-sm text-gray-500 dark:text-gray-400 mt-1">{job.title_hindi}</p>
+            <p className="hindi mt-1" style={{ fontSize: "0.85rem", color: "var(--ink-600)" }}>
+              {job.title_hindi}
+            </p>
           )}
 
           {/* Key metrics strip */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs">
+          <div
+            className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 pt-3"
+            style={{
+              borderTop: "1px solid var(--border-soft)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.75rem",
+            }}
+          >
             {job.total_posts && (
-              <span className="font-bold text-brand">
+              <span style={{ fontWeight: 700, color: "var(--brand-blue)" }}>
                 📋 {job.total_posts.toLocaleString("en-IN")} Posts
               </span>
             )}
             {job.qualification && (
-              <span className="text-gray-600 dark:text-gray-400">🎓 {job.qualification}</span>
+              <span style={{ color: "var(--ink-600)" }}>🎓 {job.qualification}</span>
             )}
             {job.last_date && (
-              <span className={`font-semibold ${isExpiringSoon ? "text-red-600" : "text-gray-600 dark:text-gray-400"}`}>
+              <span style={{ fontWeight: 600, color: isExpiringSoon ? "var(--red)" : "var(--ink-600)" }}>
                 📅 {fmtDate(job.last_date)}
               </span>
             )}
@@ -306,8 +356,11 @@ export default async function JobDetailPage({ params }: PageProps) {
         </Section>
 
         {/* Telegram CTA */}
-        <div className="card bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-center">
-          <p className="hindi text-sm text-gray-700 dark:text-gray-300 mb-3">
+        <div
+          className="card text-center"
+          style={{ background: "#eef3fc", borderColor: "#c7d7f5" }}
+        >
+          <p className="hindi mb-3" style={{ fontSize: "0.875rem", color: "var(--ink-700)" }}>
             इस तरह की और भर्तियों का अलर्ट Telegram पर पाएं — बिल्कुल मुफ्त
           </p>
           <a

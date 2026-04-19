@@ -12,6 +12,7 @@ module.exports = {
       fontFamily: {
         hindi: ["var(--font-noto-devanagari)", "sans-serif"],
         sans:  ["var(--font-noto-sans)", "sans-serif"],
+        mono:  ["var(--font-ibm-mono)", "monospace"],
       },
       colors: {
         brand: {

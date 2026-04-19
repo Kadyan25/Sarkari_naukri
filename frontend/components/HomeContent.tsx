@@ -17,65 +17,130 @@ export default function HomeContent({ jobs, error, category, page }: Props) {
   const { lang } = useApp();
   const t = useT(lang);
 
+  const today = new Date().toLocaleDateString("en-IN", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+
   return (
     <div className="space-y-4">
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-brand to-brand-dark rounded-2xl p-4 sm:p-6 text-white">
-        <h1 className="text-lg sm:text-2xl font-bold leading-tight">
+      {/* Editorial Hero */}
+      <div
+        style={{
+          borderBottom: "2px solid var(--border-strong)",
+          paddingBottom: "16px",
+          marginBottom: "4px",
+        }}
+      >
+        {/* Eyebrow */}
+        <p
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.65rem",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--ink-600)",
+            marginBottom: "8px",
+          }}
+        >
+          {today} · ताजा भर्ती · Latest Recruitments
+        </p>
+
+        <h1
+          className="hindi leading-tight"
+          style={{ fontSize: "clamp(1.25rem, 4vw, 1.75rem)", fontWeight: 700, color: "var(--ink-900)" }}
+        >
           {t("heroTitle")}
         </h1>
-        <p className="text-blue-100 text-sm mt-1">{t("heroSub")}</p>
+        <p
+          className="hindi mt-1"
+          style={{ fontSize: "0.875rem", color: "var(--ink-600)" }}
+        >
+          {t("heroSub")}
+        </p>
+
         <a
           href="https://t.me/your_bot"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 mt-3 bg-white text-brand
-                     px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors"
+          className="btn-primary inline-flex items-center gap-2 mt-3"
         >
           🔔 {t("telegramCta")}
         </a>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* StatBar */}
+      <div
+        className="grid grid-cols-3 gap-0"
+        style={{
+          border: "1px solid var(--border)",
+          borderRadius: "var(--r-lg)",
+          overflow: "hidden",
+          background: "var(--bg-surface)",
+        }}
+      >
         {[
           { label: t("freshJobs"),   value: "500+" },
           { label: t("dailyUpdate"), value: "24/7" },
           { label: "Telegram",       value: "10K+" },
-        ].map((stat) => (
-          <div key={stat.label} className="card text-center py-3">
-            <div className="text-lg font-bold text-brand">{stat.value}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{stat.label}</div>
+        ].map((stat, i) => (
+          <div
+            key={stat.label}
+            className="text-center py-3 px-2"
+            style={{
+              borderRight: i < 2 ? "1px solid var(--border)" : undefined,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                color: "var(--brand-blue)",
+              }}
+            >
+              {stat.value}
+            </div>
+            <div
+              style={{ fontSize: "0.7rem", color: "var(--ink-600)", marginTop: "2px" }}
+            >
+              {stat.label}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Category Tabs */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          {t("pickDept")}
-        </h2>
+        <p className="eyebrow">{t("pickDept")}</p>
         <CategoryTabs active={category} lang={lang} />
       </section>
 
       {/* Jobs List */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800 dark:text-gray-200">
+          <p className="eyebrow" style={{ marginBottom: 0, borderBottom: "none" }}>
             {category
               ? `${category.toUpperCase()} ${t("recruitments")}`
               : t("latestJobs")}
-          </h2>
+          </p>
           {jobs.length > 0 && (
-            <span className="text-xs text-gray-400">{jobs.length} jobs</span>
+            <span
+              style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--ink-400)" }}
+            >
+              {jobs.length} jobs
+            </span>
           )}
         </div>
 
         {error && (
-          <div className="card text-center py-8 text-red-500">{t("loadError")}</div>
+          <div className="card text-center py-8" style={{ color: "var(--red)" }}>
+            {t("loadError")}
+          </div>
         )}
         {!error && jobs.length === 0 && (
-          <div className="card text-center py-8 text-gray-400">{t("noJobs")}</div>
+          <div className="card text-center py-8" style={{ color: "var(--ink-400)" }}>
+            {t("noJobs")}
+          </div>
         )}
 
         <div className="space-y-3">
@@ -100,10 +165,8 @@ export default function HomeContent({ jobs, error, category, page }: Props) {
 
       {/* SEO Text */}
       <section className="card mt-6">
-        <h2 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-          {t("aboutTitle")}
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+        <p className="eyebrow">{t("aboutTitle")}</p>
+        <p className="hindi" style={{ fontSize: "0.875rem", color: "var(--ink-700)", lineHeight: 1.7 }}>
           {t("aboutText")}
         </p>
       </section>

@@ -1,6 +1,81 @@
-# issues.md — Haryana Sarkari Naukri
+# issues.md — Sarkari Naukri
 
 Tracks bugs found, root cause, and fix applied. Newest first.
+
+---
+
+## ISSUE-015 — Design: gradient hero/shadow-heavy cards clashed with newspaper aesthetic
+**Date:** 2026-04-19
+**Issue:** Homepage used a blue gradient hero banner and box-shadow cards — looked like a generic app, not a trusted government job gazette. Category tab labels were English-only.
+**Fix:** Implemented newspaper/gazette design system. CSS tokens: warm cream `--bg-page: #f4efe4`, ink scale `--ink-*`, no shadows (borders only), tight radii (6px card / 4px button / 2px badge), IBM Plex Mono for metadata. Header: dark reversed masthead, always dark regardless of theme. Hero: date eyebrow + H1 + separator rule. StatBar: 3-column mono number grid. Eyebrow pattern for all section headings. Dark mode: single `html.dark {}` block overrides all CSS vars — no per-component dark hacks needed.
+
+## ISSUE-014 — official_url points to aggregator sites, not real department portals
+**Date:** 2026-04-19
+**Issue:** Jobs scraped from haryanajobs.in, sarkarinaukri.com, and sarkariresult.com stored the aggregator page URL as `official_url`. Users clicking "Apply Online" landed on third-party aggregator sites instead of official government portals.
+**Fix:** Added `CATEGORY_OFFICIAL_URLS` dict in config.py mapping each category to its real department homepage (hssc.gov.in, ibps.in, ssc.gov.in, upsc.gov.in etc.). All three aggregator scrapers now use this mapping instead of storing the aggregator href. The DB upsert conditionally updates `official_url` — replaces stored aggregator URLs but preserves correct URLs from direct govt scrapers. `db_fix_aggregator_urls()` backfills existing records on server startup.
+
+## ISSUE-013 — API returns 0 jobs despite 1045 in DB
+**Date:** 2026-04-19
+**Issue:** `GET /api/jobs` returned an empty list even though `scrape_all_sources()` had just upserted 1045 jobs into Supabase. The frontend showed no job cards.
+**Fix:** `db_list_jobs()` had a filter `j.last_date >= CURRENT_DATE` which excluded every row where `last_date IS NULL`. Since most scraped jobs come from aggregator pages that don't expose a parseable date, the majority of rows had `NULL` last_date and were silently filtered out. Changed filter to `(j.last_date IS NULL OR j.last_date >= CURRENT_DATE)`. Same fix applied to `db_get_recommended_jobs()`.
+
+## ISSUE-012 — asyncpg create_pool fails on Windows with Supabase pooler
+**Date:** 2026-04-19
+**Issue:** `asyncpg.create_pool()` threw `ConnectionRefusedError [WinError 1225]` even though `asyncpg.connect()` with the same URL worked fine.
+**Fix:** Pass an explicit `ssl.SSLContext` to `create_pool()`. Windows ProactorEventLoop handles SSL differently for pool connections vs single connections.
+
+## ISSUE-011 — load_dotenv() missing from config.py
+**Date:** 2026-04-19
+**Issue:** `DB_URL`, `TELEGRAM_BOT_TOKEN` etc. were always reading the hardcoded fallback values because `.env` was never loaded. Scraper was connecting to localhost instead of Supabase.
+**Fix:** Added `from dotenv import load_dotenv; load_dotenv()` at the top of `config.py`.
+
+## ISSUE-010 — No scraper health monitoring (blocked sources go undetected)
+**Date:** 2026-04-19
+**Issue:** If a source gets IP-blocked or changes HTML structure, scraper returns 0 jobs silently. No alert, no visibility.
+**Fix:** Added `scraper_runs` table logging per-source job counts after every run. `db_get_scraper_health()` checks last 3 runs per source. If any source returns 0 three times in a row, Telegram alert is sent to `ADMIN_TELEGRAM_ID`. New endpoint `GET /api/health/scrapers` shows full status. Set `ADMIN_TELEGRAM_ID` in `.env` (your personal Telegram user ID — get it from @userinfobot).
+
+---
+
+## ISSUE-009 — Frontend: dead Vite files, security vuln, no dark mode, no i18n, wrong branding
+**Date:** 2026-04-19
+
+- **Dead Vite/SEO-audit files** (`frontend/src/`, `index.html`, `vite.config.js`) — none imported by Next.js. **Fix:** Deleted all three.
+- **Next.js critical CVE** (`next@14.2.3`). **Fix:** Upgraded to `next@16.2.4`.
+- **`images.domains` deprecation** in `next.config.js`. **Fix:** Replaced with `remotePatterns`.
+- **No dual language** — UI text hardcoded Hindi. **Fix:** Added `AppContext` + `lib/i18n.ts`; EN/HI toggle in header; preference saved to `localStorage`.
+- **No dark mode** — site had no dark theme. **Fix:** `darkMode: 'class'` in Tailwind; dark variants on all components; theme toggle in header; preference saved to `localStorage`; inline script prevents flash-of-wrong-theme.
+- **Haryana-only branding** — would not scale to All-India. **Fix:** Rebranded to "Sarkari Naukri" / `SarkariNaukri.in` (placeholder; final name TBD).
+
+---
+
+## ISSUE-008 — SSC CGL/CHSL, SBI, Army sites are JS-rendered (0 jobs)
+**Date:** 2026-04-13
+**Severity:** Medium — SSC CGL is huge (millions of applicants) but indirectly covered
+
+### Symptom
+```
+SSC (ssc.gov.in/portal/latestnotice):  0 links
+SSC (ssc.nic.in/Portal/Notices):       0 relevant links (only exam calendar PDFs)
+SBI (sbi.co.in/web/careers):           0 relevant links
+Army (joinindianarmy.nic.in):          0 links
+```
+
+### Root Cause
+All four sites are fully JS-rendered. BeautifulSoup sees empty shell HTML.
+- SSC portal: React/Angular SPA, job listings injected after load
+- SBI careers: Liferay portal, content loaded via AJAX
+- Army site: JS-only page (9KB shell)
+
+### Current Mitigation
+SSC CGL/CHSL jobs are covered indirectly via:
+- `haryanajobs.in` — aggregator that lists SSC jobs ✅
+- `sarkariresult.com/haryana/` — will work on Railway (geo-filtered locally) ✅
+
+### Future Fix
+Add `scraper_js.py` using Playwright for JS-rendered sites.
+Priority order: SSC > SBI > Army.
+Playwright is already in .gitignore (removed from requirements.txt in Week 4).
+Re-add `playwright==1.44.0` to requirements.txt when implementing.
 
 ---
 
