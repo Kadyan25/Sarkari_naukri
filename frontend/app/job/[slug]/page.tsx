@@ -171,9 +171,7 @@ export default async function JobDetailPage({ params }: PageProps) {
     null;
 
   const howToApply = [
-    job.official_url
-      ? `आधिकारिक वेबसाइट (${job.official_url}) पर जाएं`
-      : "विभाग की आधिकारिक वेबसाइट पर जाएं",
+    "ऊपर दिए गए 'Apply Online' बटन पर क्लिक करें और आधिकारिक वेबसाइट पर जाएं",
     '"Apply Online" या "ऑनलाइन आवेदन" लिंक पर क्लिक करें',
     "मोबाइल नंबर / ईमेल से नया रजिस्ट्रेशन करें",
     "फॉर्म भरें — फोटो, हस्ताक्षर और दस्तावेज अपलोड करें",

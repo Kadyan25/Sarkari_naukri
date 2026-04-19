@@ -22,9 +22,12 @@ async function apiFetch<T>(
       }
     });
   }
-  const res = await fetch(url.toString(), {
-    next: { revalidate },
-  });
+  const res = await fetch(
+    url.toString(),
+    process.env.NODE_ENV === "development"
+      ? { cache: "no-store" }
+      : { next: { revalidate } },
+  );
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }
