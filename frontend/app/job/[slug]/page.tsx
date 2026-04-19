@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getJob, getRecentJobSlugs } from "@/lib/api";
 import { Job, CATEGORY_LABELS, CATEGORY_HINDI } from "@/lib/types";
@@ -193,6 +194,9 @@ function ActionButtons({ job }: { job: Job }) {
 // ── Page ────────────────────────────────────────────────────────────────────
 export default async function JobDetailPage({ params }: PageProps) {
   const { slug } = await params;
+  const cookieStore = await cookies();
+  const lang = (cookieStore.get("sn_lang")?.value ?? "hi") as "hi" | "en";
+
   let job: Job;
   try {
     job = await getJob(slug);
@@ -200,8 +204,10 @@ export default async function JobDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const catLabel   = CATEGORY_LABELS[job.category] ?? job.category.toUpperCase();
-  const catHindi   = CATEGORY_HINDI[job.category]  ?? job.category.toUpperCase();
+  const catLabel = lang === "hi"
+    ? (CATEGORY_HINDI[job.category]  ?? job.category.toUpperCase())
+    : (CATEGORY_LABELS[job.category] ?? job.category.toUpperCase());
+  const catHindi = CATEGORY_HINDI[job.category] ?? job.category.toUpperCase();
 
   const isExpiringSoon = job.last_date
     ? (new Date(job.last_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24) <= 7
@@ -209,21 +215,28 @@ export default async function JobDetailPage({ params }: PageProps) {
 
   const fmtDate = (d?: string | null) =>
     d
-      ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+      ? new Date(d).toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "long", year: "numeric" })
       : null;
 
   const ageLabel =
-    job.age_min && job.age_max ? `${job.age_min}–${job.age_max} वर्ष` :
-    job.age_max                ? `अधिकतम ${job.age_max} वर्ष`         :
-    null;
+    lang === "hi"
+      ? (job.age_min && job.age_max ? `${job.age_min}–${job.age_max} वर्ष` : job.age_max ? `अधिकतम ${job.age_max} वर्ष` : null)
+      : (job.age_min && job.age_max ? `${job.age_min}–${job.age_max} yrs`  : job.age_max ? `Max ${job.age_max} yrs`        : null);
 
-  const howToApply = [
+  const howToApply = lang === "hi" ? [
     "ऊपर दिए गए 'Apply Online' बटन पर क्लिक करें और आधिकारिक वेबसाइट पर जाएं",
     '"Apply Online" या "ऑनलाइन आवेदन" लिंक पर क्लिक करें',
     "मोबाइल नंबर / ईमेल से नया रजिस्ट्रेशन करें",
     "फॉर्म भरें — फोटो, हस्ताक्षर और दस्तावेज अपलोड करें",
     "आवेदन शुल्क ऑनलाइन जमा करें (डेबिट कार्ड / नेट बैंकिंग / UPI)",
     "सबमिट करें और कन्फर्मेशन पेज का प्रिंटआउट रखें",
+  ] : [
+    "Click the 'Apply Online' button above to visit the official website",
+    "Click the 'Apply Online' or 'Online Application' link",
+    "Register with your mobile number or email",
+    "Fill the form — upload photo, signature and documents",
+    "Pay the application fee online (Debit Card / Net Banking / UPI)",
+    "Submit and keep a printout of the confirmation page",
   ];
 
   return (
@@ -321,34 +334,34 @@ export default async function JobDetailPage({ params }: PageProps) {
 
         {/* Important Dates */}
         {(job.apply_start || job.last_date) && (
-          <Section hindiTitle="महत्वपूर्ण तिथियाँ" engLabel="KEY DATES">
+          <Section hindiTitle={lang === "hi" ? "महत्वपूर्ण तिथियाँ" : "Important Dates"} engLabel="KEY DATES">
             <table className="w-full">
               <tbody>
-                <InfoRow label="आवेदन शुरू"  value={fmtDate(job.apply_start)} />
-                <InfoRow label="अंतिम तिथि"  value={fmtDate(job.last_date)} highlight={isExpiringSoon} />
+                <InfoRow label={lang === "hi" ? "आवेदन शुरू" : "Apply Start"} value={fmtDate(job.apply_start)} />
+                <InfoRow label={lang === "hi" ? "अंतिम तिथि" : "Last Date"}   value={fmtDate(job.last_date)} highlight={isExpiringSoon} />
               </tbody>
             </table>
           </Section>
         )}
 
         {/* Vacancy & Eligibility */}
-        <Section hindiTitle="भर्ती विवरण" engLabel="KEY INFO">
+        <Section hindiTitle={lang === "hi" ? "भर्ती विवरण" : "Vacancy Details"} engLabel="KEY INFO">
           <table className="w-full">
             <tbody>
-              <InfoRow label="कुल पद"         value={job.total_posts ? `${job.total_posts.toLocaleString("en-IN")} पद` : null} />
-              <InfoRow label="विभाग"           value={`${catLabel} (${catHindi})`} />
-              <InfoRow label="पद का नाम"       value={job.post_type} />
-              <InfoRow label="शैक्षिक योग्यता" value={job.qualification} />
-              <InfoRow label="आयु सीमा"        value={ageLabel} />
-              <InfoRow label="वेतनमान"          value={job.salary} />
-              <InfoRow label="आवेदन शुल्क"     value={job.application_fee} />
-              <InfoRow label="स्रोत"            value={job.source} />
+              <InfoRow label={lang === "hi" ? "कुल पद"         : "Total Posts"}   value={job.total_posts ? `${job.total_posts.toLocaleString("en-IN")} ${lang === "hi" ? "पद" : "Posts"}` : null} />
+              <InfoRow label={lang === "hi" ? "विभाग"           : "Department"}    value={`${catLabel} (${catHindi})`} />
+              <InfoRow label={lang === "hi" ? "पद का नाम"       : "Post Name"}     value={job.post_type} />
+              <InfoRow label={lang === "hi" ? "शैक्षिक योग्यता" : "Qualification"} value={job.qualification} />
+              <InfoRow label={lang === "hi" ? "आयु सीमा"        : "Age Limit"}     value={ageLabel} />
+              <InfoRow label={lang === "hi" ? "वेतनमान"          : "Salary"}        value={job.salary} />
+              <InfoRow label={lang === "hi" ? "आवेदन शुल्क"     : "Fee"}           value={job.application_fee} />
+              <InfoRow label={lang === "hi" ? "स्रोत"            : "Source"}        value={job.source} />
             </tbody>
           </table>
         </Section>
 
         {/* How to Apply */}
-        <Section hindiTitle="आवेदन कैसे करें" engLabel="HOW TO APPLY">
+        <Section hindiTitle={lang === "hi" ? "आवेदन कैसे करें" : "How to Apply"} engLabel="HOW TO APPLY">
           <ol className="space-y-2.5">
             {howToApply.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300">

@@ -38,6 +38,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     localStorage.setItem("sn_lang", lang);
+    document.cookie = `sn_lang=${lang};path=/;max-age=31536000`;
   }, [lang, ready]);
 
   return (
