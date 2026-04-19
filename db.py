@@ -1,14 +1,20 @@
 import asyncpg
+import ssl
 from typing import Any, Dict, List, Optional
 
 from config import DB_URL
 
 _pool: asyncpg.Pool = None
 
+# Supabase pooler requires SSL; explicit context avoids Windows ProactorEventLoop SSL quirk
+_ssl_ctx = ssl.create_default_context()
+_ssl_ctx.check_hostname = False
+_ssl_ctx.verify_mode = ssl.CERT_NONE
+
 
 async def init_db():
     global _pool
-    _pool = await asyncpg.create_pool(DB_URL, min_size=2, max_size=10)
+    _pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=5, ssl=_ssl_ctx)
     async with _pool.acquire() as conn:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS jobs (
