@@ -105,34 +105,36 @@ async def close_db():
 
 async def db_fix_aggregator_urls() -> int:
     """
-    One-time backfill: replace aggregator-site URLs with official department homepages.
-    Safe to call multiple times — only touches rows whose official_url still points
-    to haryanajobs.in, sarkarinaukri.com, or sarkariresult.com.
+    Backfill: replace aggregator-site URLs with real dept URLs using org+category detection.
+    Runs on every startup — safe to call multiple times (only touches aggregator-URL rows).
     Returns number of rows updated.
     """
-    from config import CATEGORY_OFFICIAL_URLS
+    from config import CATEGORY_OFFICIAL_URLS, ORG_URL_OVERRIDES
+    _AGGR = ("haryanajobs.in", "sarkarinaukri.com", "sarkariresult.com")
+
     async with _pool.acquire() as conn:
-        total = 0
-        for category, url in CATEGORY_OFFICIAL_URLS.items():
-            result = await conn.execute(
-                """UPDATE jobs
-                   SET official_url = $1, updated_at = NOW()
-                   WHERE category = $2
-                     AND (official_url LIKE '%haryanajobs.in%'
-                          OR official_url LIKE '%sarkarinaukri.com%'
-                          OR official_url LIKE '%sarkariresult.com%')""",
-                url, category,
-            )
-            total += int(result.split()[-1])
-        # catch-all for 'other' and unmapped categories
-        result = await conn.execute(
-            """UPDATE jobs
-               SET official_url = 'https://india.gov.in/', updated_at = NOW()
-               WHERE (official_url LIKE '%haryanajobs.in%'
-                      OR official_url LIKE '%sarkarinaukri.com%'
-                      OR official_url LIKE '%sarkariresult.com%')""",
+        rows = await conn.fetch(
+            """SELECT id, title, category FROM jobs
+               WHERE official_url LIKE '%haryanajobs.in%'
+                  OR official_url LIKE '%sarkarinaukri.com%'
+                  OR official_url LIKE '%sarkariresult.com%'"""
         )
-        total += int(result.split()[-1])
+        total = 0
+        for row in rows:
+            title = (row["title"] or "").lower()
+            # Org detection first, then category fallback
+            url = None
+            for keywords, org_url in ORG_URL_OVERRIDES:
+                if any(kw in title for kw in keywords):
+                    url = org_url
+                    break
+            if not url:
+                url = CATEGORY_OFFICIAL_URLS.get(row["category"], "https://india.gov.in/")
+            await conn.execute(
+                "UPDATE jobs SET official_url = $1, updated_at = NOW() WHERE id = $2",
+                url, row["id"],
+            )
+            total += 1
         return total
 
 
@@ -213,6 +215,7 @@ async def db_upsert_job(job: Dict[str, Any]) -> int:
                     THEN EXCLUDED.official_url
                     ELSE jobs.official_url
                 END,
+                notification_pdf = COALESCE(EXCLUDED.notification_pdf, jobs.notification_pdf),
                 updated_at    = NOW()
             RETURNING id
         """,

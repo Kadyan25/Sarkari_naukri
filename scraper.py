@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 
-from config import _USER_AGENTS, SOURCES, CATEGORY_OFFICIAL_URLS, random_headers
+from config import _USER_AGENTS, SOURCES, CATEGORY_OFFICIAL_URLS, ORG_URL_OVERRIDES, random_headers
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +188,16 @@ def detect_category(title: str) -> str:
     return "other"
 
 
+def detect_org_url(title: str) -> str | None:
+    """Return the official department URL based on org name found in the title.
+    Takes priority over generic category-based mapping."""
+    t = title.lower()
+    for keywords, url in ORG_URL_OVERRIDES:
+        if any(kw in t for kw in keywords):
+            return url
+    return None
+
+
 def detect_qualification(title: str) -> str:
     t = title.lower()
     if "10th" in t or "matric" in t:                                      return "10th"
@@ -256,17 +266,19 @@ async def scrape_sarkariresult_haryana() -> List[Dict[str, Any]]:
         if not title or len(title) < 5:
             continue
         link_tag = cells[0].find("a")
-        category = detect_category(title)
+        link_href = link_tag["href"] if link_tag and link_tag.get("href") else None
+        category  = detect_category(title)
         jobs.append({
-            "title":         title,
-            "slug":          slugify(title),
-            "last_date":     parse_last_date(cells[-1].get_text(strip=True)),
-            "official_url":  CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
-            "source":        "sarkariresult",
-            "category":      category,
-            "qualification": detect_qualification(title),
-            "state":         "haryana",
-            "status":        "active",
+            "title":            title,
+            "slug":             slugify(title),
+            "last_date":        parse_last_date(cells[-1].get_text(strip=True)),
+            "official_url":     detect_org_url(title) or CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
+            "notification_pdf": link_href,
+            "source":           "sarkariresult",
+            "category":         category,
+            "qualification":    detect_qualification(title),
+            "state":            "haryana",
+            "status":           "active",
         })
 
     result = _dedup(jobs)
@@ -416,14 +428,15 @@ async def scrape_haryanajobs() -> List[Dict[str, Any]]:
             continue
         category = detect_category(text)
         jobs.append({
-            "title":         text,
-            "slug":          slugify(text),
-            "official_url":  CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
-            "source":        "haryanajobs",
-            "category":      category,
-            "qualification": detect_qualification(text),
-            "state":         "haryana",
-            "status":        "active",
+            "title":            text,
+            "slug":             slugify(text),
+            "official_url":     detect_org_url(text) or CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
+            "notification_pdf": href,
+            "source":           "haryanajobs",
+            "category":         category,
+            "qualification":    detect_qualification(text),
+            "state":            "haryana",
+            "status":           "active",
         })
 
     result = _dedup(jobs)
@@ -477,14 +490,15 @@ async def scrape_sarkarinaukri() -> List[Dict[str, Any]]:
 
         category = detect_category(text)
         jobs.append({
-            "title":         text,
-            "slug":          slugify(text),
-            "official_url":  CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
-            "source":        "sarkarinaukri",
-            "category":      category,
-            "qualification": detect_qualification(text),
-            "state":         "haryana" if is_haryana else "all_india",
-            "status":        "active",
+            "title":            text,
+            "slug":             slugify(text),
+            "official_url":     detect_org_url(text) or CATEGORY_OFFICIAL_URLS.get(category, "https://india.gov.in/"),
+            "notification_pdf": href,
+            "source":           "sarkarinaukri",
+            "category":         category,
+            "qualification":    detect_qualification(text),
+            "state":            "haryana" if is_haryana else "all_india",
+            "status":           "active",
         })
 
     result = _dedup(jobs)

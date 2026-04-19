@@ -50,6 +50,31 @@ NCS_API_BASE = "https://www.ncs.gov.in/api"
 
 AGGREGATOR_SOURCES = {"haryanajobs", "sarkarinaukri", "sarkariresult"}
 
+# (keywords_in_title, official_url) — checked before CATEGORY_OFFICIAL_URLS fallback.
+# Org detection takes priority so e.g. "HPCRA Teacher" links to HP site, not BSEH.
+ORG_URL_OVERRIDES: list[tuple[list[str], str]] = [
+    (["hpcra", "hp rajya chayan", "himachal pradesh rajya chayan"], "https://hprecruit.hp.gov.in/"),
+    (["hppsc", "hp public service commission"],                     "https://hppsc.hp.gov.in/"),
+    (["rpsc", "rajasthan public service"],                          "https://rpsc.rajasthan.gov.in/"),
+    (["jkpsc", "j&k public service", "jammu kashmir psc"],         "https://jkpsc.nic.in/"),
+    (["ppsc", "punjab public service"],                             "https://ppsc.gov.in/"),
+    (["ukpsc", "uttarakhand public service"],                       "https://psc.uk.gov.in/"),
+    (["uppsc", "uttar pradesh public service"],                     "https://uppsc.up.nic.in/"),
+    (["mppsc", "madhya pradesh public service"],                    "https://mppsc.mp.gov.in/"),
+    (["jpsc", "jharkhand public service"],                          "https://jpsc.gov.in/"),
+    (["bpsc", "bihar public service"],                              "https://bpsc.bihar.gov.in/"),
+    (["ibps"],                                                       "https://www.ibps.in/"),
+    (["sbi po", "sbi clerk", "sbi so", "sbi apprentice"],          "https://sbi.co.in/web/careers"),
+    (["rrb ", "railway recruitment board"],                         "https://indianrailways.gov.in/"),
+    (["upsc", "union public service"],                              "https://upsc.gov.in/"),
+    (["ssc cgl", "ssc chsl", "ssc mts", "ssc gd", "ssc je"],       "https://ssc.gov.in/"),
+    (["ugc-net", "ugc net", "nta net", "jrf"],                      "https://ugcnet.nta.ac.in/"),
+    (["csir-net", "csir net"],                                       "https://csirnet.nta.ac.in/"),
+    (["htet", "haryana teacher eligibility"],                       "https://bseh.org.in/home"),
+    (["hssc"],                                                       "https://hssc.gov.in/"),
+    (["hpsc", "haryana public service"],                            "https://hpsc.gov.in/"),
+]
+
 # Maps detected category → official department homepage.
 # Used by aggregator scrapers so users are never linked to third-party aggregator sites.
 CATEGORY_OFFICIAL_URLS: Dict[str, str] = {

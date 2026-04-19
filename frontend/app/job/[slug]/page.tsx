@@ -136,7 +136,7 @@ function ActionButtons({ job }: { job: Job }) {
           className="flex-1 text-center border-2 border-brand text-brand px-4 py-2 rounded-lg
                      text-sm font-semibold hover:bg-brand hover:text-white transition-colors min-w-[130px]"
         >
-          📄 Notification PDF
+          {job.notification_pdf?.endsWith(".pdf") ? "📄 Notification PDF" : "🔗 View Details"}
         </a>
       )}
     </div>
