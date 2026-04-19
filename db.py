@@ -202,7 +202,7 @@ async def db_list_jobs(
     limit: int = 20,
 ) -> List[Dict[str, Any]]:
     offset = (page - 1) * limit
-    filters = ["j.status = $1", "j.last_date >= CURRENT_DATE"]
+    filters = ["j.status = $1", "(j.last_date IS NULL OR j.last_date >= CURRENT_DATE)"]
     params: list = [status]
     i = 2
     if category:
@@ -230,7 +230,7 @@ async def db_get_recommended_jobs(
         rows = await conn.fetch("""
             SELECT * FROM jobs
             WHERE status = 'active'
-            AND last_date >= CURRENT_DATE
+            AND (last_date IS NULL OR last_date >= CURRENT_DATE)
             AND (qualification = $1 OR qualification = 'any')
             AND ($2 BETWEEN COALESCE(age_min, 0) AND COALESCE(age_max, 99))
             AND ($3::text[] IS NULL OR category = ANY($3))
