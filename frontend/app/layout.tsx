@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Noto_Sans, Noto_Sans_Devanagari, IBM_Plex_Mono } from "next/font/google";
 import { AppProvider } from "@/contexts/AppContext";
 import Header from "@/components/Header";
+import Ticker from "@/components/Ticker";
 import Footer from "@/components/Footer";
 import "./globals.css";
 
@@ -80,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ backgroundColor: "var(--bg-page)", color: "var(--ink-900)" }} className="min-h-screen transition-colors duration-200">
         <AppProvider>
           <Header />
+          <Ticker />
           <main className="max-w-5xl mx-auto px-3 py-4">
             {children}
           </main>

@@ -114,25 +114,24 @@ function InfoRow({
 }
 
 // ── Section wrapper ─────────────────────────────────────────────────────────
-function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+function Section({ hindiTitle, engLabel, children }: { hindiTitle: string; engLabel: string; children: React.ReactNode }) {
   return (
     <div className="card">
       <h2
-        className="hindi flex items-center gap-2"
+        className="hindi"
         style={{
           fontWeight: 700,
-          fontSize: "0.85rem",
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
+          fontSize: "0.82rem",
           color: "var(--ink-700)",
           borderBottom: "2px solid var(--border-strong)",
           paddingBottom: "8px",
           marginBottom: "12px",
           fontFamily: "var(--font-mono)",
+          letterSpacing: "0.03em",
         }}
       >
-        <span>{icon}</span>
-        <span>{title}</span>
+        {hindiTitle}
+        <span style={{ color: "var(--ink-400)", marginLeft: "8px" }}>— {engLabel}</span>
       </h2>
       {children}
     </div>
@@ -140,19 +139,33 @@ function Section({ icon, title, children }: { icon: string; title: string; child
 }
 
 // ── Action buttons row ──────────────────────────────────────────────────────
+const outlineBtn: React.CSSProperties = {
+  border: "1.5px solid var(--border-strong)",
+  color: "var(--ink-800)",
+  padding: "8px 14px",
+  borderRadius: "var(--r-md)",
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  fontFamily: "var(--font-mono)",
+  background: "transparent",
+  flex: 1,
+  textAlign: "center" as const,
+  minWidth: "110px",
+  display: "inline-block",
+};
+
 function ActionButtons({ job }: { job: Job }) {
-  if (!job.official_url && !job.notification_pdf) return null;
   return (
-    <div className="flex gap-3 flex-wrap">
+    <div className="flex gap-2 flex-wrap">
       {job.official_url && (
         <a
           href={job.official_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-primary flex-1 text-center"
+          className="btn-primary hindi flex-1 text-center"
           style={{ minWidth: "130px" }}
         >
-          Apply Online →
+          ऑनलाइन आवेदन करें ↗
         </a>
       )}
       {job.notification_pdf && (
@@ -160,29 +173,19 @@ function ActionButtons({ job }: { job: Job }) {
           href={job.notification_pdf}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center"
-          style={{
-            border: "2px solid var(--brand-blue)",
-            color: "var(--brand-blue)",
-            padding: "8px 16px",
-            borderRadius: "var(--r-md)",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            minWidth: "130px",
-            transition: "background 150ms, color 150ms",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--brand-blue)";
-            (e.currentTarget as HTMLElement).style.color = "#fff";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-            (e.currentTarget as HTMLElement).style.color = "var(--brand-blue)";
-          }}
+          style={outlineBtn}
         >
-          {job.notification_pdf?.endsWith(".pdf") ? "📄 Notification PDF" : "🔗 View Details"}
+          ↓ Notification PDF
         </a>
       )}
+      <a
+        href="https://t.me/your_bot"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={outlineBtn}
+      >
+        🔔 <span className="hindi">अलर्ट पाएं</span>
+      </a>
     </div>
   );
 }
@@ -231,22 +234,31 @@ export default async function JobDetailPage({ params }: PageProps) {
       />
 
       <div className="max-w-2xl mx-auto space-y-4">
-        {/* Breadcrumb */}
-        <nav className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-          <Link href="/" className="hover:text-brand">Home</Link>
-          {" / "}
-          <Link href={`/?category=${job.category}`} className="hover:text-brand capitalize">
-            {catLabel}
+        {/* Back link */}
+        <div>
+          <Link
+            href={`/?category=${job.category}`}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.75rem",
+              color: "var(--ink-600)",
+            }}
+            className="hover:underline"
+          >
+            ← वापस
           </Link>
-          {" / "}
-          <span className="text-gray-700 dark:text-gray-300">{job.title.slice(0, 45)}</span>
-        </nav>
+        </div>
 
         {/* Title hero card */}
         <div className="card" style={{ borderLeft: "4px solid var(--brand-blue)" }}>
           {/* Status badges */}
           <div className="flex flex-wrap gap-2 mb-2">
             <span className={`badge badge-${job.category}`}>{catLabel}</span>
+            {job.state && (
+              <span className="badge" style={{ background: "#dcfce7", color: "#166534", textTransform: "capitalize" }}>
+                {job.state}
+              </span>
+            )}
             {job.status === "result_out" && (
               <span className="badge" style={{ background: "#dcfce7", color: "#166534" }}>✓ Result Out</span>
             )}
@@ -256,6 +268,14 @@ export default async function JobDetailPage({ params }: PageProps) {
             {isExpiringSoon && job.status === "active" && (
               <span className="badge" style={{ background: "#fee2e2", color: "#991b1b" }}>⚠ Closing Soon</span>
             )}
+            {job.last_date && !isExpiringSoon && job.status === "active" && (() => {
+              const days = Math.ceil((new Date(job.last_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              return days > 0 && days <= 30 ? (
+                <span className="badge" style={{ background: "#f0fdf4", color: "#16a34a" }}>
+                  {days} दिन बाकी
+                </span>
+              ) : null;
+            })()}
           </div>
 
           <h1
@@ -301,7 +321,7 @@ export default async function JobDetailPage({ params }: PageProps) {
 
         {/* Important Dates */}
         {(job.apply_start || job.last_date) && (
-          <Section icon="📅" title="महत्वपूर्ण तिथियाँ">
+          <Section hindiTitle="महत्वपूर्ण तिथियाँ" engLabel="KEY DATES">
             <table className="w-full">
               <tbody>
                 <InfoRow label="आवेदन शुरू"  value={fmtDate(job.apply_start)} />
@@ -312,10 +332,10 @@ export default async function JobDetailPage({ params }: PageProps) {
         )}
 
         {/* Vacancy & Eligibility */}
-        <Section icon="📋" title="भर्ती विवरण">
+        <Section hindiTitle="भर्ती विवरण" engLabel="KEY INFO">
           <table className="w-full">
             <tbody>
-              <InfoRow label="कुल पद"         value={job.total_posts ? `${job.total_posts.toLocaleString("en-IN")} Posts` : null} />
+              <InfoRow label="कुल पद"         value={job.total_posts ? `${job.total_posts.toLocaleString("en-IN")} पद` : null} />
               <InfoRow label="विभाग"           value={`${catLabel} (${catHindi})`} />
               <InfoRow label="पद का नाम"       value={job.post_type} />
               <InfoRow label="शैक्षिक योग्यता" value={job.qualification} />
@@ -328,7 +348,7 @@ export default async function JobDetailPage({ params }: PageProps) {
         </Section>
 
         {/* How to Apply */}
-        <Section icon="📝" title="आवेदन कैसे करें">
+        <Section hindiTitle="आवेदन कैसे करें" engLabel="HOW TO APPLY">
           <ol className="space-y-2.5">
             {howToApply.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300">
@@ -378,8 +398,12 @@ export default async function JobDetailPage({ params }: PageProps) {
 
         {/* Back to category */}
         <div className="text-center pb-2">
-          <Link href={`/?category=${job.category}`} className="text-sm text-brand hover:underline">
-            ← See all {catLabel} jobs
+          <Link
+            href={`/?category=${job.category}`}
+            style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--ink-600)" }}
+            className="hover:underline hindi"
+          >
+            ← सभी {catLabel} भर्तियाँ देखें
           </Link>
         </div>
       </div>
